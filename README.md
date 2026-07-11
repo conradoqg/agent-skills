@@ -11,6 +11,11 @@ license information where applicable.
 | `chrome-devtools-wsl2` | General | Launch and attach Windows Chrome for browser automation from WSL2. |
 | `council` | Adapted | Run a structured, delegated, multi-perspective council. |
 | `model-leaderboard-cost-benefit` | General | Rank current AI models by auditable capability and cost criteria. |
+| `authoring-skills` | Adapted | Author and review portable Agent Skills against a shared rubric. |
+| `self-learning` | Adapted | Capture verified golden paths and delegate authoring to `authoring-skills`. |
+| `ponytail-review` | Adapted | Review a diff exclusively for avoidable complexity. |
+| `ponytail-audit` | Adapted | Audit a whole repository for avoidable complexity. |
+| `ponytail-debt` | Adapted | Collect deliberate `ponytail:` deferrals into a debt ledger. |
 
 ## Install
 
@@ -76,8 +81,12 @@ The `council` skill is adapted from
 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) and the license bundled with
 that skill.
 
+`authoring-skills` and `self-learning` are adapted from work by
+[`kulaxyz`](https://github.com/kulaxyz/self-learning-skills). The three
+`ponytail-*` companion skills are adapted from
+[`DietrichGebert/ponytail`](https://github.com/DietrichGebert/ponytail).
+
 ## License
 
 Original work in this repository is licensed under the MIT License. Adapted
 third-party work remains subject to its bundled license and attribution.
-

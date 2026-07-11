@@ -17,10 +17,21 @@ def metadata(text: str) -> dict[str, str]:
         raise ValueError("missing YAML frontmatter")
     block = text[4 : text.index("\n---\n", 4)]
     result: dict[str, str] = {}
+    active_folded: str | None = None
     for line in block.splitlines():
-        if ":" in line and not line[:1].isspace():
+        if line[:1].isspace():
+            if active_folded and line.strip():
+                result[active_folded] = (result[active_folded] + " " + line.strip()).strip()
+            continue
+        active_folded = None
+        if ":" in line:
             key, value = line.split(":", 1)
-            result[key.strip()] = value.strip().strip("'\"")
+            key, value = key.strip(), value.strip().strip("'\"")
+            if value in {">", ">-", "|", "|-"}:
+                result[key] = ""
+                active_folded = key
+            else:
+                result[key] = value
     return result
 
 
@@ -60,4 +71,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
