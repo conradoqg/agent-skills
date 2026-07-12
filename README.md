@@ -10,6 +10,7 @@ license information where applicable.
 |---|---|---|
 | `chrome-devtools-wsl2` | General | Launch and attach Windows Chrome for browser automation from WSL2. |
 | `council` | Adapted | Run a structured, delegated, multi-perspective council. |
+| `git-user-activity-summary` | General | Summarize Git activity by repository across a folder tree. |
 | `model-leaderboard-cost-benefit` | General | Rank current AI models by auditable capability and cost criteria. |
 | `authoring-skills` | Adapted | Author and review portable Agent Skills against a shared rubric. |
 | `self-learning` | Adapted | Capture verified golden paths and delegate authoring to `authoring-skills`. |
