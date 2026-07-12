@@ -1,6 +1,8 @@
 ---
 name: model-leaderboard-cost-benefit
 description: Analyze current model leaderboards and produce an auditable cost-benefit ranking. Use when comparing recent OpenAI, Anthropic, or Google models by benchmark capability, cost, or GitHub Copilot premium-request multiplier.
+metadata:
+  author: conradoqg
 ---
 
 # Model Leaderboard Cost-Benefit
@@ -96,4 +98,3 @@ Every main table must include:
 - If extraction breaks after a site change, inspect the current HTML/payload
   structure before changing ranking rules.
 - Treat missing fields and `"$undefined"` as absent and record the exclusion.
-

@@ -1,6 +1,8 @@
 ---
 name: chrome-devtools-wsl2
 description: Set up and use the chrome-devtools MCP browser tools from inside WSL2, where Chrome must run as the Windows executable with remote debugging. Use this whenever you need to drive a browser under WSL2 — navigating pages, taking screenshots or snapshots, filling forms, running Lighthouse or performance traces, or any chrome-devtools tool — even if the user does not mention WSL2. Also use it when the user asks to test a site while logged in / authenticated, or to choose between a clean throwaway browser profile and their real Chrome profile. Do NOT use on native Linux (launch google-chrome directly there), and do NOT use for non-browser tasks.
+metadata:
+  author: conradoqg
 ---
 
 # chrome-devtools on WSL2
