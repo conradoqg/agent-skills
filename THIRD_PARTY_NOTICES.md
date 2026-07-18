@@ -23,6 +23,23 @@ authoring material and expanded with cross-agent review guidance.
 
 The upstream license is included in both skill directories.
 
+## Grilling
+
+The `grilling` skill is adapted from the `grilling` and `batch-grill-me` skills
+in [`mattpocock/skills`](https://github.com/mattpocock/skills), licensed under
+the MIT License. Its front matter records both source paths, including the
+historical commit for `batch-grill-me`; the local adaptation adds explicit mode
+selection and a shared completion rule.
+
+The upstream license is included at `skills/grilling/LICENSE`.
+
+## What-If Oracle
+
+The `what-if-oracle` skill is copied from
+[`ashrafkahoush-ux/claude-consciousness-skills`](https://github.com/ashrafkahoush-ux/claude-consciousness-skills)
+and remains licensed under CC BY-NC-SA 4.0. Its upstream source is also
+recorded in the skill front matter.
+
 ## Ponytail companions
 
 `ponytail-review`, `ponytail-audit`, and `ponytail-debt` are adapted from

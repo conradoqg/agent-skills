@@ -7,9 +7,6 @@ description: >
   weekly work report, or repository-by-repository changelog from a directory,
   even when they do not explicitly mention Git commands or a reporting format.
 license: MIT
-metadata:
-  author: conradoqg
-  version: "1.0"
 ---
 
 # Git User Activity Summary

@@ -11,9 +11,6 @@ description: >
   and the per-tool differences across Codex, Claude Code, and Kiro.
 license: MIT
 source: https://github.com/kulaxyz/self-learning-skills
-metadata:
-  author: kulaxyz
-  version: "1.0"
 ---
 
 # Authoring Skills

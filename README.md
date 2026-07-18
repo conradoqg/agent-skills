@@ -11,9 +11,11 @@ license information where applicable.
 | `chrome-devtools-wsl2` | General | Launch and attach Windows Chrome for browser automation from WSL2. |
 | `council` | Adapted | Run a structured, delegated, multi-perspective council. |
 | `git-user-activity-summary` | General | Summarize Git activity by repository across a folder tree. |
+| `grilling` | Adapted | Stress-test a plan, decision, design, or idea in sequential or batch mode. |
 | `model-leaderboard-cost-benefit` | General | Rank current AI models by auditable capability and cost criteria. |
 | `authoring-skills` | Adapted | Author and review portable Agent Skills against a shared rubric. |
 | `self-learning` | Adapted | Capture verified golden paths and delegate authoring to `authoring-skills`. |
+| `what-if-oracle` | Adapted | Explore uncertain futures through structured multi-branch scenarios. |
 | `ponytail-review` | Adapted | Review a diff exclusively for avoidable complexity. |
 | `ponytail-audit` | Adapted | Audit a whole repository for avoidable complexity. |
 | `ponytail-debt` | Adapted | Collect deliberate `ponytail:` deferrals into a debt ledger. |

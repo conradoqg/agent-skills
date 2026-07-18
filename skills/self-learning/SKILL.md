@@ -16,9 +16,6 @@ description: >
   project-local or global skill.
 license: MIT
 source: https://github.com/kulaxyz/self-learning-skills
-metadata:
-  author: kulaxyz
-  version: "1.0"
 ---
 
 # Self-learning: harvest golden paths into skills
