@@ -1,0 +1,109 @@
+{
+  "skill_name": "authoring-skills",
+  "evals": [
+    {
+      "id": "review-frontmatter",
+      "prompt": "Revise o SKILL.md de exemplo e liste somente os problemas de autoria no formato exigido pela skill.",
+      "expected_output": "Uma lista de achados objetivos no formato tag: problema. correção. [caminho:linha], cobrindo o nome inválido e a descrição vaga.",
+      "files": ["evals/files/invalid-skill/SKILL.md"],
+      "assertions": [
+        {
+          "criterion": "Diagnóstico do nome da skill",
+          "threshold": 8,
+          "rubric": {
+            "0": "Não menciona o nome.",
+            "5": "Menciona que o nome é ruim, sem explicar a regra violada.",
+            "8": "Identifica caracteres inválidos ou divergência do diretório e propõe correção.",
+            "10": "Cobre caracteres inválidos, a regra de correspondência com o diretório e a correção precisa."
+          }
+        },
+        {
+          "criterion": "Diagnóstico da descrição de ativação",
+          "threshold": 8,
+          "rubric": {
+            "0": "Não menciona a descrição.",
+            "5": "Chama a descrição de vaga sem explicar o impacto.",
+            "8": "Explica que a descrição não comunica capacidade ou gatilhos e propõe correção.",
+            "10": "Explica o impacto na ativação e propõe capacidade e gatilhos específicos."
+          }
+        },
+        {
+          "criterion": "Formato dos achados",
+          "threshold": 9,
+          "rubric": {
+            "0": "Não apresenta achados estruturados.",
+            "5": "Apresenta alguns achados, mas omite tag, correção ou localização.",
+            "9": "Cada achado tem tag, problema, correção e localização.",
+            "10": "Além do nível 9, segue integralmente o formato e encerra com o veredito exigido."
+          }
+        }
+      ]
+    },
+    {
+      "id": "review-secret",
+      "prompt": "Revise o SKILL.md de exemplo e liste somente os problemas de autoria no formato exigido pela skill.",
+      "expected_output": "Uma lista de achados objetivos que identifica o segredo embutido e recomenda uma referência segura.",
+      "files": ["evals/files/secret-skill/SKILL.md"],
+      "assertions": [
+        {
+          "criterion": "Identificação de segredo embutido",
+          "threshold": 8,
+          "rubric": {
+            "0": "Não identifica o segredo.",
+            "5": "Menciona credenciais sem tratar o valor embutido como risco.",
+            "8": "Identifica o valor embutido como problema de segurança.",
+            "10": "Também explica por que segredos não devem ser versionados em uma skill."
+          }
+        },
+        {
+          "criterion": "Remediação segura do segredo",
+          "threshold": 8,
+          "rubric": {
+            "0": "Não propõe remediação.",
+            "5": "Propõe uma correção vaga.",
+            "8": "Manda remover o valor e usar referência ou variável de ambiente.",
+            "10": "Também orienta um mecanismo seguro de obtenção sem expor o valor."
+          }
+        },
+        {
+          "criterion": "Formato dos achados",
+          "threshold": 9,
+          "rubric": {
+            "0": "Não apresenta achados estruturados.",
+            "5": "Apresenta alguns achados, mas omite tag, correção ou localização.",
+            "9": "Cada achado tem tag, problema, correção e localização.",
+            "10": "Além do nível 9, segue integralmente o formato e encerra com o veredito exigido."
+          }
+        }
+      ]
+    },
+    {
+      "id": "review-solid-skill",
+      "prompt": "Revise o SKILL.md de exemplo e liste somente os problemas de autoria no formato exigido pela skill.",
+      "expected_output": "A confirmação exata de que a skill está sólida e pronta para envio, sem inventar achados.",
+      "files": ["evals/files/solid-skill/SKILL.md"],
+      "assertions": [
+        {
+          "criterion": "Veredito para skill sólida",
+          "threshold": 9,
+          "rubric": {
+            "0": "Inventa problemas ou não dá veredito.",
+            "5": "Diz que não encontrou problemas, sem declarar que a skill está pronta.",
+            "9": "Afirma que a skill está sólida e pronta para envio.",
+            "10": "Usa exatamente o veredito definido pela skill, sem texto especulativo adicional."
+          }
+        },
+        {
+          "criterion": "Ausência de falsos positivos",
+          "threshold": 9,
+          "rubric": {
+            "0": "Inventa um achado de autoria.",
+            "5": "Evita achados graves, mas introduz ressalvas sem base.",
+            "9": "Não inventa achados de trigger, secret, structure, disclosure ou freedom.",
+            "10": "Confirma a ausência de achados sem acrescentar ressalvas especulativas."
+          }
+        }
+      ]
+    }
+  ]
+}

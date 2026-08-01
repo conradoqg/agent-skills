@@ -73,9 +73,45 @@ Run the repository checks:
 python3 tests/validate_skills.py
 python3 tests/test_model_ranking.py
 bash tests/test_chrome_launcher.sh
+node tests/test_evaluate_skills.mjs
 ```
 
 The checks are offline and do not modify installed agent configuration.
+
+### Skill evaluations
+
+The evaluation harness follows the Agent Skills `evals/evals.json` convention.
+Its workflow is runtime-agnostic; it currently includes an isolated Codex CLI
+runtime adapter and stores generated evidence outside the skill package:
+
+```bash
+node scripts/evaluate-skills.ts --skill authoring-skills
+node scripts/evaluate-skills.ts --skill authoring-skills --previous /path/to/previous-snapshot
+```
+
+The first command compares `without_skill` with `with_skill`. Supplying
+`--previous` adds `old_skill` to detect regressions. Results are written under
+`.skill-evals/`, which is ignored by Git. The runner needs an authenticated
+Codex CLI; use `--grader none` to capture runs without LLM assertion grading.
+Each run records task and grader token usage separately when the runtime
+provides it. `codex exec --json` is enabled automatically for this purpose.
+Assertions can declare a `criterion`, a 0-10 `threshold`, and a `rubric` with
+anchored score descriptions; the harness calculates pass/fail from
+`score >= threshold` and retains the score and evidence in `grading.json`.
+
+For a new skill, add at least two realistic cases and one boundary case. Before
+a material skill update, snapshot the existing skill outside the repository and
+run the three-way comparison:
+
+```bash
+cp -R skills/<skill-name> /tmp/<skill-name>-previous
+node scripts/evaluate-skills.ts --skill <skill-name> --previous /tmp/<skill-name>-previous
+```
+
+The benchmark separates task and grader token use. A skill must meet every
+criterion's threshold; average score is diagnostic only. The complete workflow
+for agents is in [AGENTS.md](AGENTS.md). LLM-based evaluation is deliberately
+local for now, not a CI requirement.
 
 ## Attribution
 
