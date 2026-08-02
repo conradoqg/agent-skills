@@ -21,8 +21,7 @@ function usage() {
 
 Options:
   --previous <path>       Previous skill snapshot; adds the old_skill variant.
-  --competitor <path>     Skill to compare directly; may be supplied more than once.
-  --evals <path>          External evals.json suite; useful for comparing arbitrary skills.
+  --evals <path>          External evals.json suite for this skill evaluation.
   --workspace <path>      Root for generated evidence (default: .skill-evals/<skill>).
   --runtime <name>        Runtime adapter (default: codex).
   --codex-bin <path>      Codex executable when --runtime codex (default: codex).
@@ -38,7 +37,7 @@ Options:
 }
 
 function parseArgs(argv) {
-  const values = { runtime: "codex", grader: "runtime", codexBin: "codex", timeoutMs: DEFAULT_TIMEOUT_MS, concurrency: 1, competitors: [] };
+  const values = { runtime: "codex", grader: "runtime", codexBin: "codex", timeoutMs: DEFAULT_TIMEOUT_MS, concurrency: 1 };
   for (let index = 0; index < argv.length; index += 1) {
     const key = argv[index];
     if (key === "--help") return { help: true };
@@ -49,7 +48,6 @@ function parseArgs(argv) {
     if (key === "--skill") values.skill = value;
     else if (key === "--runtime") values.runtime = value;
     else if (key === "--previous") values.previous = value;
-    else if (key === "--competitor") values.competitors.push(value);
     else if (key === "--evals") values.evals = value;
     else if (key === "--workspace") values.workspace = value;
     else if (key === "--codex-bin") values.codexBin = value;
@@ -200,13 +198,13 @@ function safeId(id) {
   return String(id).replace(/[^a-zA-Z0-9._-]+/g, "-");
 }
 
-async function copyInputs(skillPath, test, target) {
+async function copyInputs(inputRoot, test, target) {
   const copied = [];
   for (const source of test.files ?? []) {
-    const sourcePath = resolve(skillPath, source);
-    const insideSkill = relative(skillPath, sourcePath) && !relative(skillPath, sourcePath).startsWith("..");
-    if (!insideSkill || !(await fileExists(sourcePath))) {
-      throw new Error(`Eval ${test.id}: declared input does not exist inside skill: ${source}`);
+    const sourcePath = resolve(inputRoot, source);
+    const insideInputRoot = relative(inputRoot, sourcePath) && !relative(inputRoot, sourcePath).startsWith("..");
+    if (!insideInputRoot || !(await fileExists(sourcePath))) {
+      throw new Error(`Eval ${test.id}: declared input does not exist inside the eval input root: ${source}`);
     }
     const destination = join(target, source);
     await mkdir(dirname(destination), { recursive: true });
@@ -563,11 +561,11 @@ async function runConversation({ runtime, variantDir, simulatorDir, inputs, test
   return { label, output: finalOutput, timing: mergeTimings(timings), code, timedOut, stderr: error ?? "", conversation };
 }
 
-async function evaluateVariant({ runtime, skillPath, iterationPath, test, variant, sourceSkill, repetition, maxTurns }) {
+export async function evaluateVariant({ runtime, inputRoot, iterationPath, test, variant, sourceSkill, repetition, maxTurns }) {
   const evalDir = join(iterationPath, `eval-${safeId(test.id)}`);
   const variantDir = test.repetitions > 1 ? join(evalDir, `repetition-${repetition}`, variant) : join(evalDir, variant);
   const outputs = join(variantDir, "outputs");
-  const inputs = await copyInputs(skillPath, test, join(variantDir, "inputs"));
+  const inputs = await copyInputs(inputRoot, test, join(variantDir, "inputs"));
   const runtimeSkillPath = await copyRuntimeSkill(sourceSkill, variantDir);
   const instruction = runtimeSkillPath
     ? `Read and follow the Agent Skill at ${runtimeSkillPath} before completing the task.`
@@ -637,17 +635,18 @@ function summarizeTurns(runs) {
   return { conversation_runs: conversations.length, candidate_turns: total, average_candidate_turns: conversations.length === 0 ? null : total / conversations.length };
 }
 
-async function writeFinalReport(iterationPath, benchmark) {
+export async function writeFinalReport(iterationPath, benchmark) {
+  const participantLabel = benchmark.kind === "benchmark" ? "Participant" : "Variant";
   const lines = [
-    "# Skill benchmark report",
+    benchmark.kind === "benchmark" ? "# Skill competition report" : "# Skill evaluation report",
     "",
     `Generated: ${benchmark.generated_at}`,
     "",
     `Transcript bundle: [index](${benchmark.transcript_bundle ?? "transcripts/index.md"})`,
     "",
-    "## Variant summary",
+    `## ${participantLabel} summary`,
     "",
-    "| Variant | Passed | Avg score | Facts | Weighted discovery | Candidate turns | Avg turns | Task tokens |",
+    `| ${participantLabel} | Passed | Avg score | Facts | Weighted discovery | Candidate turns | Avg turns | Task tokens |`,
     "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |"
   ];
   for (const [variant, summary] of Object.entries(benchmark.summary)) {
@@ -658,7 +657,7 @@ async function writeFinalReport(iterationPath, benchmark) {
     const averageTurns = turns.average_candidate_turns === null ? "n/a" : turns.average_candidate_turns.toFixed(2);
     lines.push(`| ${variant} | ${summary.passed}/${summary.total} | ${score} | ${discovery.revealed_hidden_facts}/${discovery.available_hidden_facts} | ${weighted} | ${turns.candidate_turns} | ${averageTurns} | ${summary.task_token_usage.total_tokens} |`);
   }
-  lines.push("", "## Scenario results", "", "| Scenario | Variant | Passed | Facts | Turns | Scores |", "| --- | --- | --- | ---: | ---: | --- |");
+  lines.push("", "## Scenario results", "", `| Scenario | ${participantLabel} | Passed | Facts | Turns | Scores |`, "| --- | --- | --- | ---: | ---: | --- |");
   for (const result of benchmark.results) {
     const discovery = result.conversation?.discovery;
     lines.push(`| ${result.eval_id} | ${result.variant} | ${result.passed ? "yes" : "no"} | ${discovery ? `${discovery.revealed_count}/${discovery.available_count}` : "n/a"} | ${result.conversation?.candidate_turns ?? "n/a"} | ${result.grading.map((grade) => `${grade.criterion}: ${grade.score}`).join("; ")} |`);
@@ -667,7 +666,7 @@ async function writeFinalReport(iterationPath, benchmark) {
   return "report.md";
 }
 
-async function writeTranscriptBundle(iterationPath, results) {
+export async function writeTranscriptBundle(iterationPath, results) {
   const conversationalRuns = results.filter((result) => result.transcript_path);
   if (conversationalRuns.length === 0) return null;
   const bundleDir = join(iterationPath, "transcripts");
@@ -688,7 +687,7 @@ async function writeTranscriptBundle(iterationPath, results) {
   return relative(iterationPath, join(bundleDir, "index.md"));
 }
 
-async function mapWithConcurrency(items, concurrency, callback) {
+export async function mapWithConcurrency(items, concurrency, callback) {
   const results = new Array(items.length);
   let nextIndex = 0;
   async function worker() {
@@ -703,7 +702,7 @@ async function mapWithConcurrency(items, concurrency, callback) {
   return results;
 }
 
-async function main() {
+export async function main() {
   const config = parseArgs(process.argv.slice(2));
   if (config.help) {
     process.stdout.write(usage());
@@ -713,10 +712,6 @@ async function main() {
   if (!(await fileExists(join(skillPath, "SKILL.md")))) throw new Error(`Not a skill directory: ${skillPath}`);
   if (config.previous && !(await fileExists(join(resolve(ROOT, config.previous), "SKILL.md")))) {
     throw new Error(`--previous is not a skill directory: ${config.previous}`);
-  }
-  const competitorPaths = config.competitors.map((competitor) => resolveSkill(competitor));
-  for (const competitorPath of competitorPaths) {
-    if (!(await fileExists(join(competitorPath, "SKILL.md")))) throw new Error(`--competitor is not a skill directory: ${competitorPath}`);
   }
   const manifest = await loadManifest(skillPath, config.evals);
   const runtime = createRuntime(config);
@@ -729,7 +724,6 @@ async function main() {
   const variants = previousPath
     ? [["without_skill", null], ["old_skill", previousPath], ["with_skill", skillPath]]
     : [["without_skill", null], ["with_skill", skillPath]];
-  variants.push(...competitorPaths.map((competitorPath, index) => [`competitor-${safeId(basename(competitorPath))}-${index + 1}`, competitorPath]));
   const jobs = [];
   for (const test of manifest.evals) {
     const repetitions = Math.min(test.repetitions ?? 1, config.maxRepetitions ?? Infinity);
@@ -745,7 +739,7 @@ async function main() {
       eval_id: job.test.id,
       ...(await evaluateVariant({
         runtime,
-        skillPath,
+        inputRoot: config.evals ? dirname(resolve(ROOT, config.evals)) : skillPath,
         iterationPath,
         test: job.test,
         variant: job.variant,
@@ -757,6 +751,7 @@ async function main() {
   });
   const transcriptBundle = await writeTranscriptBundle(iterationPath, results);
   const benchmark = {
+    kind: "evaluation",
     skill_name: manifest.skill_name,
     eval_suite: config.evals ? resolve(ROOT, config.evals) : join(skillPath, "evals", "evals.json"),
     iteration,
@@ -778,7 +773,7 @@ async function main() {
     }))
   };
   benchmark.report = await writeFinalReport(iterationPath, benchmark);
-  await writeFile(join(iterationPath, "benchmark.json"), JSON.stringify(benchmark, null, 2));
+  await writeFile(join(iterationPath, "evaluation.json"), JSON.stringify(benchmark, null, 2));
   const candidates = results.filter((result) => result.variant === "with_skill");
   const oldById = new Map(results.filter((result) => result.variant === "old_skill").map((result) => [String(result.eval_id), result]));
   const regressions = candidates.filter((candidate) => !candidate.passed || (oldById.get(String(candidate.eval_id))?.passed && !candidate.passed));
@@ -789,7 +784,11 @@ async function main() {
   if (regressions.length > 0) process.exitCode = 1;
 }
 
-main().catch((error) => {
-  process.stderr.write(`evaluate-skills: ${error.message}\n`);
-  process.exitCode = 2;
-});
+if (import.meta.main) {
+  main().catch((error) => {
+    process.stderr.write(`evaluate-skills: ${error.message}\n`);
+    process.exitCode = 2;
+  });
+}
+
+export { DEFAULT_TIMEOUT_MS, MAX_CONVERSATION_TURNS, ROOT, createRuntime, fileExists, loadManifest, nextIteration, resolveSkill, safeId, summarizeDiscovery, summarizeScores, summarizeTurns, sumTokenUsage };

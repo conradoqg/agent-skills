@@ -33,10 +33,27 @@ node scripts/evaluate-skills.ts --skill <skill-name> --previous /tmp/<skill-name
 
 The first command compares `without_skill` and `with_skill`. The second also
 compares `old_skill`. Review per-criterion evidence, threshold results, task
-token usage, and grader token usage in the generated `benchmark.json`.
+token usage, and grader token usage in the generated `evaluation.json`.
 
-Do not version `.skill-evals/`, outputs, traces, timing files, benchmarks, or
-snapshots. They can be large, ephemeral, or sensitive.
+## Benchmark multiple skills
+
+Use the separate benchmark runner only for a neutral comparison between two or
+more peer skills. It requires an independent shared suite; do not use any
+participant's bundled `evals/evals.json` as the benchmark suite:
+
+```bash
+node scripts/benchmark-skills.ts \
+  --participant /path/to/skill-a \
+  --participant /path/to/skill-b \
+  --evals /path/to/shared-evals.json
+```
+
+Benchmark fixtures are resolved relative to the shared suite. Review the
+generated `benchmark.json` and `report.md`; pass/fail and token metrics inform
+the comparison, while only runtime failures make the command fail.
+
+Do not version `.skill-evals/`, `.skill-benchmarks/`, outputs, traces, timing
+files, benchmarks, or snapshots. They can be large, ephemeral, or sensitive.
 
 ## When an evaluation is not required
 

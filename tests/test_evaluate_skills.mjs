@@ -4,7 +4,7 @@
 import assert from "node:assert/strict";
 import { chmod, mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { spawn } from "node:child_process";
 
 const ROOT = new URL("..", import.meta.url).pathname;
@@ -83,7 +83,7 @@ await chmod(fakeCodex, 0o755);
 
 const first = await run("node", ["scripts/evaluate-skills.ts", "--skill", skill, "--workspace", workspace, "--codex-bin", fakeCodex, "--iteration", "1"]);
 assert.equal(first.code, 0, first.stderr);
-const benchmark = JSON.parse(await readFile(join(workspace, "iteration-1", "benchmark.json"), "utf8"));
+const benchmark = JSON.parse(await readFile(join(workspace, "iteration-1", "evaluation.json"), "utf8"));
 assert.equal(benchmark.summary.with_skill.passed, 1);
 assert.deepEqual(benchmark.summary.with_skill.task_token_usage, {
   input_tokens: 100,
@@ -100,7 +100,7 @@ assert.equal(taskTiming.total_tokens, 115);
 
 const second = await run("node", ["scripts/evaluate-skills.ts", "--skill", skill, "--previous", previous, "--workspace", workspace, "--codex-bin", fakeCodex, "--iteration", "2"]);
 assert.equal(second.code, 0, second.stderr);
-const previousBenchmark = JSON.parse(await readFile(join(workspace, "iteration-2", "benchmark.json"), "utf8"));
+const previousBenchmark = JSON.parse(await readFile(join(workspace, "iteration-2", "evaluation.json"), "utf8"));
 assert.deepEqual(previousBenchmark.variants, ["without_skill", "old_skill", "with_skill"]);
 assert.equal(previousBenchmark.summary.old_skill.task_token_usage.total_tokens, 115);
 assert.equal(previousBenchmark.summary.old_skill.passed, 0);
@@ -128,13 +128,17 @@ await writeFile(join(conversationSkill, "evals", "evals.json"), JSON.stringify({
   }]
 }, null, 2));
 const conversationWorkspace = join(temp, "conversation-workspace");
-const conversationRun = await run("node", ["scripts/evaluate-skills.ts", "--skill", conversationSkill, "--workspace", conversationWorkspace, "--codex-bin", fakeCodex, "--grader", "none", "--competitor", skill, "--concurrency", "2"]);
+const conversationSuite = join(temp, "conversation-suite", "evals.json");
+await mkdir(dirname(conversationSuite), { recursive: true });
+await writeFile(conversationSuite, await readFile(join(conversationSkill, "evals", "evals.json"), "utf8"));
+const conversationRun = await run("node", ["scripts/benchmark-skills.ts", "--participant", conversationSkill, "--participant", skill, "--evals", conversationSuite, "--workspace", conversationWorkspace, "--codex-bin", fakeCodex, "--grader", "none", "--concurrency", "2"]);
 assert.equal(conversationRun.code, 0, conversationRun.stderr);
 const conversationBenchmark = JSON.parse(await readFile(join(conversationWorkspace, "iteration-1", "benchmark.json"), "utf8"));
-assert.deepEqual(conversationBenchmark.variants, ["without_skill", "with_skill", "competitor-sample-skill-1"]);
-assert.equal(conversationBenchmark.summary.with_skill.total, 2);
-assert.equal(conversationBenchmark.summary["competitor-sample-skill-1"].total, 2);
-assert.deepEqual(conversationBenchmark.summary.with_skill.discovery_summary, {
+assert.equal(conversationBenchmark.kind, "benchmark");
+assert.deepEqual(conversationBenchmark.variants, ["participant-conversation-skill-1", "participant-sample-skill-2"]);
+assert.equal(conversationBenchmark.summary["participant-conversation-skill-1"].total, 2);
+assert.equal(conversationBenchmark.summary["participant-sample-skill-2"].total, 2);
+assert.deepEqual(conversationBenchmark.summary["participant-conversation-skill-1"].discovery_summary, {
   conversation_runs: 2,
   revealed_hidden_facts: 2,
   available_hidden_facts: 2,
@@ -143,21 +147,21 @@ assert.deepEqual(conversationBenchmark.summary.with_skill.discovery_summary, {
   available_weight: 2,
   weighted_discovery_rate: 1
 });
-assert.deepEqual(conversationBenchmark.summary.with_skill.turn_summary, { conversation_runs: 2, candidate_turns: 4, average_candidate_turns: 2 });
+assert.deepEqual(conversationBenchmark.summary["participant-conversation-skill-1"].turn_summary, { conversation_runs: 2, candidate_turns: 4, average_candidate_turns: 2 });
 assert.equal(conversationBenchmark.report, "report.md");
 assert.match(await readFile(join(conversationWorkspace, "iteration-1", "report.md"), "utf8"), /Candidate turns/);
-const conversationResult = conversationBenchmark.results.find((result) => result.variant === "with_skill" && result.repetition === 1);
+const conversationResult = conversationBenchmark.results.find((result) => result.variant === "participant-conversation-skill-1" && result.repetition === 1);
 assert.equal(conversationResult.timing.total_tokens, 345);
 assert.equal(conversationResult.conversation.candidate_turns, 2);
 assert.deepEqual(conversationResult.conversation.discovery.revealed_fact_ids, ["migration-window"]);
 assert.equal(conversationResult.conversation.transcript.at(-1).content, "A grounded final brainstorm.");
 assert.equal(conversationBenchmark.transcript_bundle, "transcripts/index.md");
-assert.equal(conversationResult.transcript_bundle_path, "transcripts/discovery/repetition-1/with_skill.json");
+assert.equal(conversationResult.transcript_bundle_path, "transcripts/discovery/repetition-1/participant-conversation-skill-1.json");
 assert.equal(await readFile(join(conversationWorkspace, "iteration-1", conversationResult.transcript_bundle_path), "utf8"), await readFile(join(conversationWorkspace, "iteration-1", conversationResult.transcript_path), "utf8"));
-assert.match(await readFile(join(conversationWorkspace, "iteration-1", "transcripts", "index.md"), "utf8"), /competitor-sample-skill-1/);
-await assert.rejects(readFile(join(conversationWorkspace, "iteration-1", "eval-discovery", "repetition-1", "with_skill", "runtime-skill", "evals", "evals.json")));
-await assert.rejects(readFile(join(conversationWorkspace, "iteration-1", "eval-discovery", "repetition-1", "with_skill", "outputs", "simulator-turn-1", "last-message.md")));
-assert.equal(await readFile(join(conversationWorkspace, "iteration-1", "private-simulator", "eval-discovery", "repetition-1", "with_skill", "turn-1", "last-message.md"), "utf8"), '{"reply":"The migration must finish in three weeks.","revealed_fact_ids":["migration-window"]}');
+assert.match(await readFile(join(conversationWorkspace, "iteration-1", "transcripts", "index.md"), "utf8"), /participant-sample-skill-2/);
+await assert.rejects(readFile(join(conversationWorkspace, "iteration-1", "eval-discovery", "repetition-1", "participant-conversation-skill-1", "runtime-skill", "evals", "evals.json")));
+await assert.rejects(readFile(join(conversationWorkspace, "iteration-1", "eval-discovery", "repetition-1", "participant-conversation-skill-1", "outputs", "simulator-turn-1", "last-message.md")));
+assert.equal(await readFile(join(conversationWorkspace, "iteration-1", "private-simulator", "eval-discovery", "repetition-1", "participant-conversation-skill-1", "turn-1", "last-message.md"), "utf8"), '{"reply":"The migration must finish in three weeks.","revealed_fact_ids":["migration-window"]}');
 
 const externalEvals = join(temp, "external-evals.json");
 await writeFile(externalEvals, JSON.stringify({
@@ -167,7 +171,7 @@ await writeFile(externalEvals, JSON.stringify({
 const externalWorkspace = join(temp, "external-workspace");
 const externalRun = await run("node", ["scripts/evaluate-skills.ts", "--skill", conversationSkill, "--evals", externalEvals, "--workspace", externalWorkspace, "--codex-bin", fakeCodex, "--grader", "none", "--max-turns", "30"]);
 assert.equal(externalRun.code, 0, externalRun.stderr);
-const externalBenchmark = JSON.parse(await readFile(join(externalWorkspace, "iteration-1", "benchmark.json"), "utf8"));
+const externalBenchmark = JSON.parse(await readFile(join(externalWorkspace, "iteration-1", "evaluation.json"), "utf8"));
 assert.equal(externalBenchmark.skill_name, "external-brainstorm-suite");
 assert.equal(externalBenchmark.eval_suite, externalEvals);
 assert.equal(externalBenchmark.summary.with_skill.passed, 1);

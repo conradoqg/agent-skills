@@ -88,23 +88,40 @@ runtime adapter and stores generated evidence outside the skill package:
 ```bash
 node scripts/evaluate-skills.ts --skill authoring-skills
 node scripts/evaluate-skills.ts --skill authoring-skills --previous /path/to/previous-snapshot
-node scripts/evaluate-skills.ts --skill /tmp/brainstorm-ideas --competitor /tmp/other-brainstorm --competitor /tmp/third-brainstorm
-node scripts/evaluate-skills.ts --skill /tmp/brainstorm-ideas --competitor /tmp/other-brainstorm --evals /path/to/external-evals.json
+node scripts/benchmark-skills.ts --participant /tmp/brainstorm-ideas --participant /tmp/other-brainstorm --evals /path/to/shared-evals.json
 ```
 
-The first command compares `without_skill` with `with_skill`. Supplying
-`--previous` adds `old_skill` to detect regressions. Results are written under
-`.skill-evals/`, which is ignored by Git. The runner needs an authenticated
-Codex CLI; use `--grader none` to capture runs without LLM assertion grading.
-Each run records task and grader token usage separately when the runtime
-provides it. `codex exec --json` is enabled automatically for this purpose.
-Assertions can declare a `criterion`, a 0-10 `threshold`, and a `rubric` with
-anchored score descriptions; the harness calculates pass/fail from
-`score >= threshold` and retains the score and evidence in `grading.json`.
-`--competitor` adds explicitly named skill variants to the same benchmark;
-the primary `with_skill` is still the only variant used for the runner's
-regression exit status. `--evals` supplies an external suite, so a reusable
-benchmark can compare skills that do not bundle their own `evals/evals.json`.
+`evaluate-skills.ts` and `benchmark-skills.ts` deliberately answer different
+questions:
+
+```mermaid
+flowchart LR
+  E["evaluate-skills.ts\nOne skill"] --> B[without_skill]
+  E --> W[with_skill]
+  E --> O[old_skill\noptional]
+  B --> R["evaluation.json\nregression exit status"]
+  W --> R
+  O --> R
+  M["benchmark-skills.ts\n2+ peer participants"] --> S["independent shared\nevals.json + fixtures"]
+  S --> P["benchmark.json\ncomparison report"]
+```
+
+Evaluation compares `without_skill` and `with_skill`; `--previous` adds
+`old_skill` to detect regressions. Its evidence is written under
+`.skill-evals/` and the runner exits unsuccessfully when the candidate fails
+or regresses. Benchmarking requires two or more `--participant` values and an
+`--evals` suite outside every participant. It writes under
+`.skill-benchmarks/`; every participant is a peer, and a failed rubric score
+does not decide the process exit code (runtime failures still do).
+
+Keep benchmark fixtures relative to the shared `evals.json`; they are copied
+into every isolated run. The runner needs an authenticated Codex CLI; use
+`--grader none` to capture runs without LLM assertion grading. Each run records
+task and grader token usage separately when the runtime provides it. `codex
+exec --json` is enabled automatically for this purpose. Assertions can declare
+a `criterion`, a 0-10 `threshold`, and a `rubric` with anchored score
+descriptions; the harness calculates pass/fail from `score >= threshold` and
+retains the score and evidence in `grading.json`.
 
 #### Conversational brainstorming evaluations
 
@@ -145,9 +162,10 @@ manifest cannot leak hidden benchmark facts through the source skill directory.
 ```
 
 For conversations, each result keeps `transcript.json` and a discovery summary
-with the hidden fact ids actually revealed. `benchmark.json` aggregates those
-metrics per variant (`conversation_runs`, revealed/available facts, and
-`discovery_rate`) alongside pass rate, rubric scores, and token use. Keep the
+with the hidden fact ids actually revealed. `evaluation.json` and
+`benchmark.json` aggregate those metrics per variant or participant
+(`conversation_runs`, revealed/available facts, and `discovery_rate`) alongside
+pass rate, rubric scores, and token use. Keep the
 same scenario, persona, turn limit, and repetitions for every competing skill;
 use a separate holdout set of profiles before changing a skill based on results.
 Use `required_hidden_fact_ids` when a fact must be discovered for a run to pass;
@@ -178,7 +196,7 @@ cp -R skills/<skill-name> /tmp/<skill-name>-previous
 node scripts/evaluate-skills.ts --skill <skill-name> --previous /tmp/<skill-name>-previous
 ```
 
-The benchmark separates task and grader token use. A skill must meet every
+The evaluation and benchmark reports separate task and grader token use. A skill must meet every
 criterion's threshold; average score is diagnostic only. The complete workflow
 for agents is in [AGENTS.md](AGENTS.md). LLM-based evaluation is deliberately
 local for now, not a CI requirement.
