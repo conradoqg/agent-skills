@@ -14,25 +14,31 @@ import { spawn } from "node:child_process";
 
 const ROOT = resolve(import.meta.dirname, "..");
 const DEFAULT_TIMEOUT_MS = 300_000;
+const MAX_CONVERSATION_TURNS = 30;
 
 function usage() {
   return `Usage: node scripts/evaluate-skills.ts --skill <name-or-path> [options]
 
 Options:
   --previous <path>       Previous skill snapshot; adds the old_skill variant.
+  --competitor <path>     Skill to compare directly; may be supplied more than once.
+  --evals <path>          External evals.json suite; useful for comparing arbitrary skills.
   --workspace <path>      Root for generated evidence (default: .skill-evals/<skill>).
   --runtime <name>        Runtime adapter (default: codex).
   --codex-bin <path>      Codex executable when --runtime codex (default: codex).
   --model <name>          Optional model passed to Codex.
   --grader <runtime|none> Grade assertions with the selected runtime or only record runs (default: runtime).
   --timeout-ms <number>   Per runtime invocation timeout (default: ${DEFAULT_TIMEOUT_MS}).
+  --max-repetitions <n>   Cap repetitions per eval for a fast pilot run.
+  --max-turns <n>         Cap conversation turns per eval for a fast pilot run.
+  --concurrency <n>       Concurrent isolated runs (default: 1).
   --iteration <number>    Explicit iteration number (default: next available).
   --help                  Print this message.
 `;
 }
 
 function parseArgs(argv) {
-  const values = { runtime: "codex", grader: "runtime", codexBin: "codex", timeoutMs: DEFAULT_TIMEOUT_MS };
+  const values = { runtime: "codex", grader: "runtime", codexBin: "codex", timeoutMs: DEFAULT_TIMEOUT_MS, concurrency: 1, competitors: [] };
   for (let index = 0; index < argv.length; index += 1) {
     const key = argv[index];
     if (key === "--help") return { help: true };
@@ -43,11 +49,16 @@ function parseArgs(argv) {
     if (key === "--skill") values.skill = value;
     else if (key === "--runtime") values.runtime = value;
     else if (key === "--previous") values.previous = value;
+    else if (key === "--competitor") values.competitors.push(value);
+    else if (key === "--evals") values.evals = value;
     else if (key === "--workspace") values.workspace = value;
     else if (key === "--codex-bin") values.codexBin = value;
     else if (key === "--model") values.model = value;
     else if (key === "--grader") values.grader = value;
     else if (key === "--timeout-ms") values.timeoutMs = Number(value);
+    else if (key === "--max-repetitions") values.maxRepetitions = Number(value);
+    else if (key === "--max-turns") values.maxTurns = Number(value);
+    else if (key === "--concurrency") values.concurrency = Number(value);
     else if (key === "--iteration") values.iteration = Number(value);
     else throw new Error(`Unknown option: ${key}`);
   }
@@ -55,6 +66,15 @@ function parseArgs(argv) {
   if (!Number.isSafeInteger(values.timeoutMs) || values.timeoutMs <= 0) throw new Error("--timeout-ms must be a positive integer");
   if (values.iteration !== undefined && (!Number.isSafeInteger(values.iteration) || values.iteration <= 0)) {
     throw new Error("--iteration must be a positive integer");
+  }
+  if (values.maxRepetitions !== undefined && (!Number.isSafeInteger(values.maxRepetitions) || values.maxRepetitions <= 0)) {
+    throw new Error("--max-repetitions must be a positive integer");
+  }
+  if (values.maxTurns !== undefined && (!Number.isSafeInteger(values.maxTurns) || values.maxTurns < 2 || values.maxTurns > MAX_CONVERSATION_TURNS)) {
+    throw new Error(`--max-turns must be an integer from 2 to ${MAX_CONVERSATION_TURNS}`);
+  }
+  if (!Number.isSafeInteger(values.concurrency) || values.concurrency <= 0) {
+    throw new Error("--concurrency must be a positive integer");
   }
   if (!['runtime', 'none'].includes(values.grader)) throw new Error("--grader must be runtime or none");
   return values;
@@ -75,8 +95,8 @@ function resolveSkill(input) {
   return direct.endsWith("SKILL.md") ? dirname(direct) : (isAbsolute(input) || input.includes("/") ? direct : named);
 }
 
-async function loadManifest(skillPath) {
-  const manifestPath = join(skillPath, "evals", "evals.json");
+async function loadManifest(skillPath, manifestOverride = null) {
+  const manifestPath = manifestOverride ? resolve(ROOT, manifestOverride) : join(skillPath, "evals", "evals.json");
   let manifest;
   try {
     manifest = JSON.parse(await readFile(manifestPath, "utf8"));
@@ -86,7 +106,7 @@ async function loadManifest(skillPath) {
   if (!manifest || typeof manifest !== "object" || typeof manifest.skill_name !== "string" || !Array.isArray(manifest.evals)) {
     throw new Error(`${manifestPath} must contain skill_name and evals[]`);
   }
-  if (manifest.skill_name !== basename(skillPath)) {
+  if (!manifestOverride && manifest.skill_name !== basename(skillPath)) {
     throw new Error(`${manifestPath}: skill_name must match the skill directory`);
   }
   const ids = new Set();
@@ -102,8 +122,49 @@ async function loadManifest(skillPath) {
     }
     if (test.assertions !== undefined && !Array.isArray(test.assertions)) throw new Error(`${manifestPath}: eval ${test.id} assertions must be an array`);
     test.assertions = (test.assertions ?? []).map((assertion, assertionIndex) => normalizeAssertion(assertion, manifestPath, test.id, assertionIndex));
+    if (test.repetitions !== undefined && (!Number.isSafeInteger(test.repetitions) || test.repetitions <= 0)) {
+      throw new Error(`${manifestPath}: eval ${test.id} repetitions must be a positive integer`);
+    }
+    if (test.conversation !== undefined) test.conversation = normalizeConversation(test.conversation, manifestPath, test.id);
   }
   return manifest;
+}
+
+function normalizeConversation(conversation, manifestPath, evalId) {
+  if (!conversation || typeof conversation !== "object" || Array.isArray(conversation)) {
+    throw new Error(`${manifestPath}: eval ${evalId} conversation must be an object`);
+  }
+  const { persona, max_turns: maxTurns } = conversation;
+  if (!persona || typeof persona !== "object" || Array.isArray(persona) || typeof persona.role !== "string" || persona.role.length === 0 ||
+    typeof persona.goal !== "string" || persona.goal.length === 0 || typeof persona.style !== "string" || persona.style.length === 0) {
+    throw new Error(`${manifestPath}: eval ${evalId} conversation.persona needs role, goal, and style`);
+  }
+  if (!Number.isSafeInteger(maxTurns) || maxTurns < 2 || maxTurns > MAX_CONVERSATION_TURNS) {
+    throw new Error(`${manifestPath}: eval ${evalId} conversation.max_turns must be an integer from 2 to ${MAX_CONVERSATION_TURNS}`);
+  }
+  const publicFacts = persona.public_facts ?? [];
+  if (!Array.isArray(publicFacts) || !publicFacts.every((fact) => typeof fact === "string" && fact.length > 0)) {
+    throw new Error(`${manifestPath}: eval ${evalId} conversation.persona.public_facts must be an array of non-empty strings`);
+  }
+  const hiddenFacts = persona.hidden_facts ?? [];
+  const factIds = new Set();
+  if (!Array.isArray(hiddenFacts)) throw new Error(`${manifestPath}: eval ${evalId} conversation.persona.hidden_facts must be an array`);
+  for (const fact of hiddenFacts) {
+    if (!fact || typeof fact !== "object" || typeof fact.id !== "string" || fact.id.length === 0 || typeof fact.fact !== "string" || fact.fact.length === 0 ||
+      typeof fact.reveal_when !== "string" || fact.reveal_when.length === 0 || (fact.weight !== undefined && (!Number.isSafeInteger(fact.weight) || fact.weight < 1 || fact.weight > 5)) || factIds.has(fact.id)) {
+      throw new Error(`${manifestPath}: eval ${evalId} hidden facts need unique id, fact, and reveal_when`);
+    }
+    factIds.add(fact.id);
+  }
+  const requiredFactIds = conversation.required_hidden_fact_ids ?? [];
+  if (!Array.isArray(requiredFactIds) || requiredFactIds.some((id) => typeof id !== "string" || !factIds.has(id)) || new Set(requiredFactIds).size !== requiredFactIds.length) {
+    throw new Error(`${manifestPath}: eval ${evalId} required_hidden_fact_ids must contain unique hidden-fact ids`);
+  }
+  return {
+    maxTurns,
+    requiredFactIds,
+    persona: { role: persona.role, goal: persona.goal, style: persona.style, publicFacts, hiddenFacts: hiddenFacts.map((fact) => ({ ...fact, weight: fact.weight ?? 1 })) }
+  };
 }
 
 function normalizeAssertion(assertion, manifestPath, evalId, assertionIndex) {
@@ -153,6 +214,16 @@ async function copyInputs(skillPath, test, target) {
     copied.push(destination);
   }
   return copied;
+}
+
+async function copyRuntimeSkill(sourceSkill, variantDir) {
+  if (!sourceSkill) return null;
+  const target = join(variantDir, "runtime-skill");
+  await cp(sourceSkill, target, { recursive: true });
+  // Evals can contain benchmark-only hidden facts. The candidate needs the
+  // skill and its references, never the manifest that is evaluating it.
+  await rm(join(target, "evals"), { recursive: true, force: true });
+  return target;
 }
 
 function spawnProcess(command, args, options) {
@@ -205,13 +276,18 @@ function usageFromJsonl(stdout) {
   };
 }
 
-async function runCodex({ config, cwd, skillPath, inputs, outputDir, prompt, label }) {
+async function runCodex({ config, cwd, skillPath, inputs, outputDir, prompt, label, outputSchema = null }) {
   await mkdir(outputDir, { recursive: true });
   const lastMessage = join(outputDir, "last-message.md");
   const args = ["exec", "--json", "--ephemeral", "--ignore-user-config", "--skip-git-repo-check", "--sandbox", "workspace-write", "--color", "never", "-C", cwd];
   if (skillPath) args.push("--add-dir", skillPath);
   if (inputs.length > 0) args.push("--add-dir", dirname(inputs[0]));
   if (config.model) args.push("--model", config.model);
+  if (outputSchema) {
+    const schemaPath = join(outputDir, "response-schema.json");
+    await writeFile(schemaPath, JSON.stringify(outputSchema, null, 2));
+    args.push("--output-schema", schemaPath);
+  }
   args.push("--output-last-message", lastMessage, prompt);
   const startedAt = new Date().toISOString();
   const started = performance.now();
@@ -263,9 +339,10 @@ async function gradeWithCodex({ config, variantDir, test, run }) {
     "Each evidence field must cite concrete output evidence or state why it is absent.",
     `Expected output: ${test.expected_output}`,
     `Assertions: ${JSON.stringify(assertions)}`,
+    run.conversation ? `Conversation transcript (the simulator's hidden facts are intentionally omitted): ${JSON.stringify(run.conversation.transcript)}` : null,
     "Candidate output follows:",
     run.output
-  ].join("\n\n");
+  ].filter(Boolean).join("\n\n");
   const args = ["exec", "--json", "--ephemeral", "--ignore-user-config", "--skip-git-repo-check", "--sandbox", "read-only", "--color", "never", "-C", variantDir];
   if (config.model) args.push("--model", config.model);
   args.push("--output-schema", schemaPath, "--output-last-message", gradeFile, graderPrompt);
@@ -313,7 +390,8 @@ function createRuntime(config) {
 }
 
 function candidatePassed(run, grading) {
-  return run.code === 0 && !run.timedOut && run.output.trim().length > 0 && grading.every((item) => item.passed !== false);
+  const discoveryPassed = !run.conversation || run.conversation.discovery.required_hidden_fact_ids.every((id) => run.conversation.discovery.revealed_fact_ids.includes(id));
+  return run.code === 0 && !run.timedOut && run.output.trim().length > 0 && discoveryPassed && grading.every((item) => item.passed !== false);
 }
 
 function sumTokenUsage(timings) {
@@ -335,12 +413,164 @@ function summarizeScores(runs) {
   };
 }
 
-async function evaluateVariant({ runtime, skillPath, iterationPath, test, variant, sourceSkill }) {
-  const variantDir = join(iterationPath, `eval-${safeId(test.id)}`, variant);
+function structuredSchema(properties, required) {
+  return {
+    type: "object",
+    additionalProperties: false,
+    required,
+    properties
+  };
+}
+
+async function runStructured(runtime, options, schema, requiredKeys) {
+  const run = await runtime.run({ ...options, outputSchema: schema });
+  if (run.code !== 0 || run.timedOut) return { run, value: null, error: run.timedOut ? "runtime timed out" : `runtime exited with ${run.code}` };
+  try {
+    const value = JSON.parse(run.output);
+    if (!value || typeof value !== "object" || Array.isArray(value) || requiredKeys.some((key) => typeof value[key] !== "string" || value[key].trim().length === 0)) {
+      throw new Error("response does not satisfy the required fields");
+    }
+    return { run, value, error: null };
+  } catch (error) {
+    return { run, value: null, error: `could not parse structured response: ${error.message}` };
+  }
+}
+
+function mergeTimings(timings) {
+  const tokenUsage = sumTokenUsage(timings);
+  return {
+    started_at: timings[0]?.started_at ?? null,
+    duration_ms: timings.reduce((sum, timing) => sum + (timing?.duration_ms ?? 0), 0),
+    ...tokenUsage
+  };
+}
+
+function transcriptText(transcript) {
+  return transcript.map((message) => `${message.speaker.toUpperCase()}: ${message.content}`).join("\n\n");
+}
+
+async function runConversation({ runtime, variantDir, simulatorDir, inputs, test, sourceSkill, label }) {
+  const { persona, maxTurns } = test.conversation;
+  const transcript = [{ speaker: "user", content: test.prompt }];
+  const revealedFactIds = [];
+  const timings = [];
+  const candidateSchema = structuredSchema({
+    action: { type: "string", enum: ["question", "final"] },
+    content: { type: "string" }
+  }, ["action", "content"]);
+  const simulatorSchema = structuredSchema({
+    reply: { type: "string" },
+    revealed_fact_ids: { type: "array", items: { type: "string" } }
+  }, ["reply", "revealed_fact_ids"]);
+  let finalOutput = "";
+  let code = 0;
+  let timedOut = false;
+  let error = null;
+  let stalledTurns = 0;
+  await mkdir(simulatorDir, { recursive: true });
+
+  for (let turn = 1; turn <= maxTurns; turn += 1) {
+    const discoveryComplete = test.conversation.requiredFactIds.length > 0 &&
+      test.conversation.requiredFactIds.every((id) => revealedFactIds.includes(id));
+    const discoveryStalled = stalledTurns >= 2;
+    const finalTurn = turn === maxTurns || discoveryComplete || discoveryStalled;
+    const candidatePrompt = [
+      "You are executing an isolated, multi-turn Agent Skill evaluation.",
+      sourceSkill ? `Read and follow the Agent Skill at ${sourceSkill} before responding.` : "Complete the task without reading or using any Agent Skill.",
+      "You are facilitating a brainstorm with a participant. Ask one focused question when more context would materially improve the result; otherwise produce the final response.",
+      `Final turn: ${finalTurn}. Required discovery facts complete: ${discoveryComplete}. Discovery stalled: ${discoveryStalled}. ${finalTurn ? "You must return action=final and synthesize from the evidence already gathered." : "Return action=question or action=final."}`,
+      `Conversation so far:\n${transcriptText(transcript)}`,
+      `Input files: ${inputs.length ? inputs.join(", ") : "none"}`,
+      "Return JSON only, matching the provided schema. The content field is the exact question or final user-facing answer."
+    ].join("\n\n");
+    const candidate = await runStructured(runtime, {
+      cwd: variantDir,
+      skillPath: sourceSkill,
+      inputs,
+      outputDir: join(variantDir, "outputs", `candidate-turn-${turn}`),
+      prompt: candidatePrompt,
+      label: `${label}-candidate-${turn}`
+    }, candidateSchema, ["action", "content"]);
+    timings.push(candidate.run.timing);
+    if (candidate.error || !["question", "final"].includes(candidate.value?.action)) {
+      code = candidate.run.code ?? 1;
+      timedOut = candidate.run.timedOut;
+      error = candidate.error ?? "candidate returned an invalid action";
+      break;
+    }
+    if (finalTurn && candidate.value.action !== "final") {
+      code = 1;
+      error = "candidate did not produce a final answer on the last allowed turn";
+      break;
+    }
+    if (candidate.value.action === "final") {
+      finalOutput = candidate.value.content;
+      transcript.push({ speaker: "assistant", content: finalOutput });
+      break;
+    }
+
+    transcript.push({ speaker: "assistant", content: candidate.value.content });
+    const simulatorPrompt = [
+      "You simulate a human brainstorm participant. Respond naturally and concisely in the persona below.",
+      "Use only the provided facts. Do not invent constraints, volunteer hidden facts before their reveal condition is materially addressed, suggest solutions, or mention this evaluation.",
+      `Persona: role=${persona.role}; goal=${persona.goal}; response style=${persona.style}.`,
+      `Public facts: ${JSON.stringify(persona.publicFacts)}.`,
+      `Hidden facts: ${JSON.stringify(persona.hiddenFacts)}.`,
+      `Already revealed hidden fact ids: ${JSON.stringify(revealedFactIds)}.`,
+      "For revealed_fact_ids, list only hidden-fact ids newly revealed in this reply; use [] when none. Return JSON only, matching the provided schema.",
+      `Conversation so far:\n${transcriptText(transcript)}`
+    ].join("\n\n");
+    const simulator = await runStructured(runtime, {
+      cwd: simulatorDir,
+      skillPath: null,
+      inputs: [],
+      outputDir: join(simulatorDir, `turn-${turn}`),
+      prompt: simulatorPrompt,
+      label: `${label}-simulator-${turn}`
+    }, simulatorSchema, ["reply"]);
+    timings.push(simulator.run.timing);
+    const validIds = new Set(persona.hiddenFacts.map((fact) => fact.id));
+    const newIds = simulator.value?.revealed_fact_ids;
+    if (simulator.error || !Array.isArray(newIds) || newIds.some((id) => typeof id !== "string" || !validIds.has(id) || revealedFactIds.includes(id))) {
+      code = simulator.run.code ?? 1;
+      timedOut = simulator.run.timedOut;
+      error = simulator.error ?? "simulator returned invalid revealed_fact_ids";
+      break;
+    }
+    revealedFactIds.push(...newIds);
+    stalledTurns = newIds.length === 0 ? stalledTurns + 1 : 0;
+    transcript.push({ speaker: "user", content: simulator.value.reply });
+  }
+  if (!finalOutput && !error) {
+    code = 1;
+    error = "conversation ended without a final answer";
+  }
+  const conversation = {
+    max_turns: maxTurns,
+    candidate_turns: transcript.filter((message) => message.speaker === "assistant").length,
+    transcript,
+    discovery: {
+      available_hidden_fact_ids: persona.hiddenFacts.map((fact) => fact.id),
+      required_hidden_fact_ids: test.conversation.requiredFactIds,
+      revealed_fact_ids: revealedFactIds,
+      revealed_count: revealedFactIds.length,
+      available_count: persona.hiddenFacts.length,
+      revealed_weight: persona.hiddenFacts.filter((fact) => revealedFactIds.includes(fact.id)).reduce((sum, fact) => sum + fact.weight, 0),
+      available_weight: persona.hiddenFacts.reduce((sum, fact) => sum + fact.weight, 0)
+    }
+  };
+  await writeFile(join(variantDir, "transcript.json"), JSON.stringify(conversation, null, 2));
+  return { label, output: finalOutput, timing: mergeTimings(timings), code, timedOut, stderr: error ?? "", conversation };
+}
+
+async function evaluateVariant({ runtime, skillPath, iterationPath, test, variant, sourceSkill, repetition, maxTurns }) {
+  const evalDir = join(iterationPath, `eval-${safeId(test.id)}`);
+  const variantDir = test.repetitions > 1 ? join(evalDir, `repetition-${repetition}`, variant) : join(evalDir, variant);
   const outputs = join(variantDir, "outputs");
   const inputs = await copyInputs(skillPath, test, join(variantDir, "inputs"));
-  const instruction = sourceSkill
-    ? `Read and follow the Agent Skill at ${sourceSkill} before completing the task.`
+  const runtimeSkillPath = await copyRuntimeSkill(sourceSkill, variantDir);
+  const instruction = runtimeSkillPath
+    ? `Read and follow the Agent Skill at ${runtimeSkillPath} before completing the task.`
     : "Complete the task without reading or using any Agent Skill.";
   const prompt = [
     "You are executing one isolated evaluation run.",
@@ -350,11 +580,127 @@ async function evaluateVariant({ runtime, skillPath, iterationPath, test, varian
     `Save any produced files under: ${outputs}`,
     "Put the complete user-facing answer in the final message. Do not replace it with a link or a summary of a file saved under outputs."
   ].join("\n");
-  const run = await runtime.run({ cwd: variantDir, skillPath: sourceSkill, inputs, outputDir: outputs, prompt, label: variant });
+  const runTest = maxTurns && test.conversation
+    ? { ...test, conversation: { ...test.conversation, maxTurns: Math.min(test.conversation.maxTurns, maxTurns) } }
+    : test;
+  const run = runTest.conversation
+    ? await runConversation({
+      runtime,
+      variantDir,
+      simulatorDir: join(iterationPath, "private-simulator", `eval-${safeId(test.id)}`, `repetition-${repetition}`, variant),
+      inputs,
+      test: runTest,
+      sourceSkill: runtimeSkillPath,
+      label: variant
+    })
+    : await runtime.run({ cwd: variantDir, skillPath: runtimeSkillPath, inputs, outputDir: outputs, prompt, label: variant });
   const graded = await runtime.grade({ variantDir, test, run });
-  const result = { variant, runtime: runtime.name, code: run.code, timed_out: run.timedOut, timing: run.timing, grader_timing: graded.timing, passed: candidatePassed(run, graded.results), grading: graded.results };
+  const result = {
+    variant,
+    repetition,
+    runtime: runtime.name,
+    code: run.code,
+    timed_out: run.timedOut,
+    timing: run.timing,
+    grader_timing: graded.timing,
+    passed: candidatePassed(run, graded.results),
+    grading: graded.results,
+    ...(run.conversation ? {
+      conversation: run.conversation,
+      transcript_path: relative(iterationPath, join(variantDir, "transcript.json"))
+    } : {})
+  };
   await writeFile(join(variantDir, "grading.json"), JSON.stringify(result, null, 2));
   return result;
+}
+
+function summarizeDiscovery(runs) {
+  const conversations = runs.filter((run) => run.conversation);
+  const revealed = conversations.reduce((sum, run) => sum + run.conversation.discovery.revealed_count, 0);
+  const available = conversations.reduce((sum, run) => sum + run.conversation.discovery.available_count, 0);
+  const revealedWeight = conversations.reduce((sum, run) => sum + run.conversation.discovery.revealed_weight, 0);
+  const availableWeight = conversations.reduce((sum, run) => sum + run.conversation.discovery.available_weight, 0);
+  return {
+    conversation_runs: conversations.length,
+    revealed_hidden_facts: revealed,
+    available_hidden_facts: available,
+    discovery_rate: available === 0 ? null : revealed / available,
+    revealed_weight: revealedWeight,
+    available_weight: availableWeight,
+    weighted_discovery_rate: availableWeight === 0 ? null : revealedWeight / availableWeight
+  };
+}
+
+function summarizeTurns(runs) {
+  const conversations = runs.filter((run) => run.conversation);
+  const total = conversations.reduce((sum, run) => sum + run.conversation.candidate_turns, 0);
+  return { conversation_runs: conversations.length, candidate_turns: total, average_candidate_turns: conversations.length === 0 ? null : total / conversations.length };
+}
+
+async function writeFinalReport(iterationPath, benchmark) {
+  const lines = [
+    "# Skill benchmark report",
+    "",
+    `Generated: ${benchmark.generated_at}`,
+    "",
+    `Transcript bundle: [index](${benchmark.transcript_bundle ?? "transcripts/index.md"})`,
+    "",
+    "## Variant summary",
+    "",
+    "| Variant | Passed | Avg score | Facts | Weighted discovery | Candidate turns | Avg turns | Task tokens |",
+    "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |"
+  ];
+  for (const [variant, summary] of Object.entries(benchmark.summary)) {
+    const discovery = summary.discovery_summary;
+    const turns = summary.turn_summary;
+    const score = summary.score_summary.average_score?.toFixed(2) ?? "n/a";
+    const weighted = discovery.weighted_discovery_rate === null ? "n/a" : `${(discovery.weighted_discovery_rate * 100).toFixed(1)}%`;
+    const averageTurns = turns.average_candidate_turns === null ? "n/a" : turns.average_candidate_turns.toFixed(2);
+    lines.push(`| ${variant} | ${summary.passed}/${summary.total} | ${score} | ${discovery.revealed_hidden_facts}/${discovery.available_hidden_facts} | ${weighted} | ${turns.candidate_turns} | ${averageTurns} | ${summary.task_token_usage.total_tokens} |`);
+  }
+  lines.push("", "## Scenario results", "", "| Scenario | Variant | Passed | Facts | Turns | Scores |", "| --- | --- | --- | ---: | ---: | --- |");
+  for (const result of benchmark.results) {
+    const discovery = result.conversation?.discovery;
+    lines.push(`| ${result.eval_id} | ${result.variant} | ${result.passed ? "yes" : "no"} | ${discovery ? `${discovery.revealed_count}/${discovery.available_count}` : "n/a"} | ${result.conversation?.candidate_turns ?? "n/a"} | ${result.grading.map((grade) => `${grade.criterion}: ${grade.score}`).join("; ")} |`);
+  }
+  await writeFile(join(iterationPath, "report.md"), `${lines.join("\n")}\n`);
+  return "report.md";
+}
+
+async function writeTranscriptBundle(iterationPath, results) {
+  const conversationalRuns = results.filter((result) => result.transcript_path);
+  if (conversationalRuns.length === 0) return null;
+  const bundleDir = join(iterationPath, "transcripts");
+  const indexLines = [
+    "# Conversation transcript bundle",
+    "",
+    "| Eval | Repetition | Variant | Transcript |",
+    "| --- | ---: | --- | --- |"
+  ];
+  for (const result of conversationalRuns) {
+    const target = join(bundleDir, safeId(result.eval_id), `repetition-${result.repetition}`, `${safeId(result.variant)}.json`);
+    await mkdir(dirname(target), { recursive: true });
+    await cp(join(iterationPath, result.transcript_path), target);
+    result.transcript_bundle_path = relative(iterationPath, target);
+    indexLines.push(`| ${result.eval_id} | ${result.repetition} | ${result.variant} | [JSON](${relative(bundleDir, target)}) |`);
+  }
+  await writeFile(join(bundleDir, "index.md"), `${indexLines.join("\n")}\n`);
+  return relative(iterationPath, join(bundleDir, "index.md"));
+}
+
+async function mapWithConcurrency(items, concurrency, callback) {
+  const results = new Array(items.length);
+  let nextIndex = 0;
+  async function worker() {
+    while (true) {
+      const index = nextIndex;
+      nextIndex += 1;
+      if (index >= items.length) return;
+      results[index] = await callback(items[index], index);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, worker));
+  return results;
 }
 
 async function main() {
@@ -368,9 +714,13 @@ async function main() {
   if (config.previous && !(await fileExists(join(resolve(ROOT, config.previous), "SKILL.md")))) {
     throw new Error(`--previous is not a skill directory: ${config.previous}`);
   }
-  const manifest = await loadManifest(skillPath);
+  const competitorPaths = config.competitors.map((competitor) => resolveSkill(competitor));
+  for (const competitorPath of competitorPaths) {
+    if (!(await fileExists(join(competitorPath, "SKILL.md")))) throw new Error(`--competitor is not a skill directory: ${competitorPath}`);
+  }
+  const manifest = await loadManifest(skillPath, config.evals);
   const runtime = createRuntime(config);
-  const workspace = config.workspace ? resolve(ROOT, config.workspace) : join(ROOT, ".skill-evals", manifest.skill_name);
+  const workspace = config.workspace ? resolve(ROOT, config.workspace) : join(ROOT, ".skill-evals", basename(skillPath));
   const iteration = config.iteration ?? await nextIteration(workspace);
   const iterationPath = join(workspace, `iteration-${iteration}`);
   if (await fileExists(iterationPath)) throw new Error(`Iteration already exists: ${iterationPath}`);
@@ -379,17 +729,40 @@ async function main() {
   const variants = previousPath
     ? [["without_skill", null], ["old_skill", previousPath], ["with_skill", skillPath]]
     : [["without_skill", null], ["with_skill", skillPath]];
-  const results = [];
+  variants.push(...competitorPaths.map((competitorPath, index) => [`competitor-${safeId(basename(competitorPath))}-${index + 1}`, competitorPath]));
+  const jobs = [];
   for (const test of manifest.evals) {
-    for (const [variant, sourceSkill] of variants) {
-      results.push({ eval_id: test.id, ...(await evaluateVariant({ runtime, skillPath, iterationPath, test, variant, sourceSkill })) });
+    const repetitions = Math.min(test.repetitions ?? 1, config.maxRepetitions ?? Infinity);
+    for (let repetition = 1; repetition <= repetitions; repetition += 1) {
+      for (const [variant, sourceSkill] of variants) {
+        jobs.push({ test, repetitions, repetition, variant, sourceSkill });
+      }
     }
   }
+  const results = await mapWithConcurrency(jobs, config.concurrency, async (job) => {
+    process.stdout.write(`Running ${job.test.id} repetition ${job.repetition}/${job.repetitions}: ${job.variant}\n`);
+    return {
+      eval_id: job.test.id,
+      ...(await evaluateVariant({
+        runtime,
+        skillPath,
+        iterationPath,
+        test: job.test,
+        variant: job.variant,
+        sourceSkill: job.sourceSkill,
+        repetition: job.repetition,
+        maxTurns: config.maxTurns
+      }))
+    };
+  });
+  const transcriptBundle = await writeTranscriptBundle(iterationPath, results);
   const benchmark = {
     skill_name: manifest.skill_name,
+    eval_suite: config.evals ? resolve(ROOT, config.evals) : join(skillPath, "evals", "evals.json"),
     iteration,
     generated_at: new Date().toISOString(),
     variants: variants.map(([variant]) => variant),
+    transcript_bundle: transcriptBundle,
     results,
     summary: Object.fromEntries(variants.map(([variant]) => {
       const runs = results.filter((result) => result.variant === variant);
@@ -397,11 +770,14 @@ async function main() {
         passed: runs.filter((result) => result.passed).length,
         total: runs.length,
         score_summary: summarizeScores(runs),
+        discovery_summary: summarizeDiscovery(runs),
+        turn_summary: summarizeTurns(runs),
         task_token_usage: sumTokenUsage(runs.map((result) => result.timing)),
         grader_token_usage: sumTokenUsage(runs.map((result) => result.grader_timing))
       }];
     }))
   };
+  benchmark.report = await writeFinalReport(iterationPath, benchmark);
   await writeFile(join(iterationPath, "benchmark.json"), JSON.stringify(benchmark, null, 2));
   const candidates = results.filter((result) => result.variant === "with_skill");
   const oldById = new Map(results.filter((result) => result.variant === "old_skill").map((result) => [String(result.eval_id), result]));

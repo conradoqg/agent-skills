@@ -1,0 +1,83 @@
+{
+  "skill_name": "brainstorm-ideas",
+  "evals": [
+    {
+      "id": "billing-migration-opportunity-tree",
+      "prompt": "A diretoria quer automatizar a migração de clientes enterprise para uma nova cobrança. Há pressão de receita, mas preciso de um brainstorm estruturado antes da decisão.",
+      "expected_output": "Oportunidades e direções de produto que tratem receita, integridade financeira, contrato e rollout sem assumir automação total.",
+      "repetitions": 2,
+      "conversation": {
+        "max_turns": 6,
+        "required_hidden_fact_ids": ["ledger-risk", "contract-exception"],
+        "persona": {
+          "role": "VP de produto de SaaS financeiro B2B",
+          "goal": "aumentar adoção da nova cobrança sem faturar errado nem quebrar contratos",
+          "style": "direto, compartilha números quando a pergunta confronta uma decisão real",
+          "public_facts": ["A cobrança nova reduz custo operacional quando o cliente é elegível."],
+          "hidden_facts": [
+            {"id":"ledger-risk","weight":3,"fact":"A reconciliação entre a cobrança antiga e a nova diverge para planos com crédito manual; uma conversão errada pode gerar saldo duplicado.","reveal_when":"perguntado sobre integridade financeira, reconciliação, exceções, créditos ou cobrança errada"},
+            {"id":"contract-exception","weight":3,"fact":"Cerca de 12% dos clientes enterprise têm cláusulas que exigem aviso prévio, aceite explícito ou cronograma negociado.","reveal_when":"perguntado sobre contrato, consentimento, obrigação, aviso prévio ou exceções comerciais"},
+            {"id":"revenue-signal","weight":2,"fact":"A estimativa de receita ignora descontos e créditos que expirariam no sistema antigo.","reveal_when":"perguntado sobre receita, premissas, descontos, créditos ou business case"},
+            {"id":"support-capacity","weight":2,"fact":"O suporte consegue acompanhar no máximo 30 migrações assistidas por semana.","reveal_when":"perguntado sobre capacidade, rollout, suporte ou operação assistida"}
+          ]
+        }
+      },
+      "assertions": [
+        {"criterion":"Oportunidades e perspectivas do trio","threshold":8,"rubric":{"0":"Endossa automação total sem investigação.","5":"Cita risco sem alterar a decisão.","8":"Separa elegibilidade, crédito manual e contrato em oportunidades distintas.","10":"Articula trade-offs de valor, experiência e viabilidade operacional."}},
+        {"criterion":"Direções e priorização","threshold":8,"rubric":{"0":"Oferece uma única migração ampla.","5":"Lista fases sem alternativas materiais.","8":"Compara pelo menos três direções com pressupostos e mecanismo de validação.","10":"Prioriza de modo explícito por impacto, viabilidade, velocidade e risco."}}
+      ]
+    },
+    {
+      "id": "identity-consolidation-product-enhancement",
+      "prompt": "Queremos reduzir a fricção de login entre produtos adquiridos. A engenharia propõe consolidar contas automaticamente por e-mail. Faça um brainstorm de produto antes de aprovarmos.",
+      "expected_output": "Direções de produto que distingam experiência de login, identidade e autorização, com hipóteses e experimentos proporcionais.",
+      "repetitions": 2,
+      "conversation": {
+        "max_turns": 6,
+        "required_hidden_fact_ids": ["shared-email-risk", "authorization-conflict"],
+        "persona": {
+          "role": "CPO de plataforma B2B após aquisições",
+          "goal": "reduzir fricção de login sem conceder acesso indevido nem perder rastreabilidade",
+          "style": "cauteloso, mas pressionado a mostrar sinergia rapidamente",
+          "public_facts": ["Os produtos têm diretórios separados e alguns clientes compartilham o mesmo domínio corporativo."],
+          "hidden_facts": [
+            {"id":"shared-email-risk","weight":3,"fact":"Em clientes grandes, contas compartilhadas e aliases reutilizam o mesmo e-mail entre pessoas e áreas; o match pode mesclar históricos distintos.","reveal_when":"perguntado sobre e-mails compartilhados, aliases, unicidade, identidade ou falsos positivos"},
+            {"id":"authorization-conflict","weight":3,"fact":"Uma pessoa pode ter papel financeiro em um produto e somente leitura em outro; unir permissões violaria segregação de funções.","reveal_when":"perguntado sobre autorização, papéis, segregação, permissões ou modelo de acesso"},
+            {"id":"adoption-friction","weight":2,"fact":"Clientes menores abandonam convites complexos e pedem login único.","reveal_when":"perguntado sobre segmento, adoção, experiência de login ou fricção"},
+            {"id":"audit-retention","weight":2,"fact":"Auditores exigem preservar o histórico original de quem aprovou ações antes da aquisição.","reveal_when":"perguntado sobre auditoria, histórico, compliance ou rastreabilidade"}
+          ]
+        }
+      },
+      "assertions": [
+        {"criterion":"Mapa de oportunidades","threshold":8,"rubric":{"0":"Aceita e-mail como identificador suficiente.","5":"Menciona segurança sem explicar mecanismo.","8":"Distingue autenticação, vínculo de identidade e autorização.","10":"Também segmenta a fricção e preserva a auditoria."}},
+        {"criterion":"Ideação e hipótese arriscada","threshold":8,"rubric":{"0":"Só propõe match automático.","5":"Lista variações superficiais de UX.","8":"Compara login central, vínculo confirmado e consolidação assistida com trade-offs.","10":"Prioriza uma direção e declara a hipótese mais arriscada com validação proporcional."}}
+      ]
+    },
+    {
+      "id": "marketplace-supply-liquidity-ideas",
+      "prompt": "Um marketplace local quer reduzir a comissão para atrair mais prestadores e a diretoria cogita aplicar a mudança a todos os mercados. Ajude a fazer um brainstorm antes de lançar.",
+      "expected_output": "Ideias e oportunidades que diferenciem liquidez, qualidade, incentivo e sustentabilidade por mercado.",
+      "repetitions": 2,
+      "conversation": {
+        "max_turns": 6,
+        "required_hidden_fact_ids": ["liquidity-concentration", "quality-adverse-selection"],
+        "persona": {
+          "role": "GM de marketplace de serviços domésticos",
+          "goal": "aumentar oferta sem degradar conversão, segurança ou margem",
+          "style": "orientado por mercado e economia unitária",
+          "public_facts": ["Prestadores reclamam que a comissão atual torna alguns trabalhos pouco atraentes."],
+          "hidden_facts": [
+            {"id":"liquidity-concentration","weight":3,"fact":"Quatro cidades já têm excesso de oferta e baixa taxa de aceitação; a falta de prestadores está concentrada em duas cidades e em turnos noturnos.","reveal_when":"perguntado sobre geografia, liquidez, aceitação, horário ou onde falta oferta"},
+            {"id":"quality-adverse-selection","weight":3,"fact":"No último desconto amplo, a entrada cresceu mas a retenção caiu porque aumentaram cancelamentos e reclamações entre novos prestadores.","reveal_when":"perguntado sobre qualidade, retenção, histórico de descontos, cancelamentos ou fraude"},
+            {"id":"margin-floor","weight":2,"fact":"Uma redução de dois pontos em todos os mercados deixaria três categorias abaixo da margem mínima aprovada.","reveal_when":"perguntado sobre margem, economia unitária, custo ou sustentabilidade"},
+            {"id":"incentive-gaming","weight":2,"fact":"Alguns prestadores alternam cadastros para capturar incentivos de entrada.","reveal_when":"perguntado sobre incentivos, abuso, fraude ou elegibilidade"}
+          ]
+        }
+      },
+      "assertions": [
+        {"criterion":"Oportunidades segmentadas","threshold":8,"rubric":{"0":"Reduz comissão universalmente.","5":"Menciona segmentação sem mudar a direção.","8":"Distingue mercados/turnos com escassez dos que têm excesso de oferta.","10":"Também incorpora risco de qualidade e piso de margem."}},
+        {"criterion":"Portfólio de ideias e validação","threshold":8,"rubric":{"0":"Oferece apenas corte de comissão.","5":"Lista incentivos sem trade-offs.","8":"Compara comissão, incentivos direcionados e melhoria operacional com hipóteses.","10":"Prioriza uma ideia por critérios explícitos e define o teste da hipótese mais arriscada."}}
+      ]
+    }
+  ]
+}

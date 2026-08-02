@@ -14,6 +14,7 @@ license information where applicable.
 | `grilling` | Adapted | Stress-test a plan, decision, design, or idea in sequential or batch mode. |
 | `model-leaderboard-cost-benefit` | General | Rank current AI models by auditable capability and cost criteria. |
 | `authoring-skills` | Adapted | Author and review portable Agent Skills against a shared rubric. |
+| `brainstorm-ideas` | Adopted | Run Product Trio ideation and Opportunity Solution Tree discovery for new and existing products. Source: [borghei/Claude-Skills](https://github.com/borghei/Claude-Skills/tree/main/project-management/discovery/brainstorm-ideas). |
 | `self-learning` | Adapted | Capture verified golden paths and delegate authoring to `authoring-skills`. |
 | `what-if-oracle` | Adapted | Explore uncertain futures through structured multi-branch scenarios. |
 | `ponytail-review` | Adapted | Review a diff exclusively for avoidable complexity. |
@@ -87,6 +88,8 @@ runtime adapter and stores generated evidence outside the skill package:
 ```bash
 node scripts/evaluate-skills.ts --skill authoring-skills
 node scripts/evaluate-skills.ts --skill authoring-skills --previous /path/to/previous-snapshot
+node scripts/evaluate-skills.ts --skill /tmp/brainstorm-ideas --competitor /tmp/other-brainstorm --competitor /tmp/third-brainstorm
+node scripts/evaluate-skills.ts --skill /tmp/brainstorm-ideas --competitor /tmp/other-brainstorm --evals /path/to/external-evals.json
 ```
 
 The first command compares `without_skill` with `with_skill`. Supplying
@@ -98,6 +101,73 @@ provides it. `codex exec --json` is enabled automatically for this purpose.
 Assertions can declare a `criterion`, a 0-10 `threshold`, and a `rubric` with
 anchored score descriptions; the harness calculates pass/fail from
 `score >= threshold` and retains the score and evidence in `grading.json`.
+`--competitor` adds explicitly named skill variants to the same benchmark;
+the primary `with_skill` is still the only variant used for the runner's
+regression exit status. `--evals` supplies an external suite, so a reusable
+benchmark can compare skills that do not bundle their own `evals/evals.json`.
+
+#### Conversational brainstorming evaluations
+
+An eval can add `conversation` and `repetitions` to measure discovery during a
+controlled dialogue. The participant profile belongs to the benchmark (it is
+not a skill or a Council persona): it describes a role, goal, response style,
+public facts, and facts that are only revealed when the candidate asks about
+the specified subject. The simulator, candidate, and grader run in separate
+contexts; unrevealed hidden facts are not put in the candidate prompt or
+transcript. The
+runtime receives a temporary copy of the skill with `evals/` removed, so a
+manifest cannot leak hidden benchmark facts through the source skill directory.
+
+```json
+{
+  "id": "migration-discovery",
+  "prompt": "Help me brainstorm a safer onboarding migration.",
+  "expected_output": "A grounded set of options and next validation step.",
+  "repetitions": 3,
+  "conversation": {
+    "max_turns": 5,
+    "persona": {
+      "role": "technical stakeholder",
+      "goal": "avoid operational risk",
+      "style": "brief and cautious",
+      "public_facts": ["The migration affects a small team."],
+      "hidden_facts": [
+        {
+          "id": "migration-window",
+          "fact": "The migration must finish in three weeks.",
+          "reveal_when": "asked about timeline or migration constraints"
+        }
+      ]
+    }
+  },
+  "assertions": []
+}
+```
+
+For conversations, each result keeps `transcript.json` and a discovery summary
+with the hidden fact ids actually revealed. `benchmark.json` aggregates those
+metrics per variant (`conversation_runs`, revealed/available facts, and
+`discovery_rate`) alongside pass rate, rubric scores, and token use. Keep the
+same scenario, persona, turn limit, and repetitions for every competing skill;
+use a separate holdout set of profiles before changing a skill based on results.
+Use `required_hidden_fact_ids` when a fact must be discovered for a run to pass;
+otherwise discovery remains diagnostic. For cost-controlled pilots, pass
+`--max-repetitions 1 --max-turns 2`; the runner prints progress for every
+case/variant. Conversations may be configured for up to 30 turns. Each
+iteration contains `transcripts/index.md`, with one organized copy of every
+conversational transcript for review. When an eval declares required hidden
+facts, the runner requests a final synthesis as soon as all of them are
+discovered. It also ends after two consecutive turns without a newly revealed
+fact; the turn limit remains the ceiling when discovery keeps advancing.
+Hidden facts may declare `weight` from 1–5. Required facts are pass/fail safety
+gates; weighted discovery remains diagnostic. `report.md` summarizes scores,
+discovery, token usage, and executed candidate turns per variant.
+
+Runs are sequential by default for the most stable runtime conditions. Pass
+`--concurrency 2` or another bounded positive integer to execute independent
+case/repetition/variant runs in parallel; result ordering remains deterministic.
+Use a modest value (typically 2–3) to avoid runtime saturation or adding load
+variation to the comparison.
 
 For a new skill, add at least two realistic cases and one boundary case. Before
 a material skill update, snapshot the existing skill outside the repository and
