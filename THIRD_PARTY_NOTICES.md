@@ -23,15 +23,15 @@ authoring material and expanded with cross-agent review guidance.
 
 The upstream license is included in both skill directories.
 
-## Grilling
+## Stress Test
 
-The `grilling` skill is adapted from the `grilling` and `batch-grill-me` skills
+The `stress-test` skill is adapted from the `grilling` and `batch-grill-me` skills
 in [`mattpocock/skills`](https://github.com/mattpocock/skills), licensed under
 the MIT License. Its front matter records both source paths, including the
 historical commit for `batch-grill-me`; the local adaptation adds explicit mode
 selection and a shared completion rule.
 
-The upstream license is included at `skills/grilling/LICENSE`.
+The upstream license is included at `skills/stress-test/LICENSE`.
 
 ## What-If Oracle
 
@@ -48,4 +48,3 @@ under the MIT License. The local variants tighten boundaries, make outputs more
 compact and explicit, and add stronger no-fix/no-scope-creep behavior.
 
 The upstream license is included in each adapted skill directory.
-

@@ -1,18 +1,17 @@
 ---
-name: grilling
+name: stress-test
 description: >
-  Use this skill when the user asks to be grilled or to stress-test a plan,
-  decision, design, or idea before acting. Select sequential mode to resolve one
-  decision at a time, or batch mode to cover independent decisions together in
-  rounds. Use it for requests such as "grill me", "grilling", "batch grill",
-  or when the user wants assumptions and tradeoffs surfaced before execution.
+  Stress-test a plan, decision, design, or idea before acting by surfacing its
+  assumptions, dependencies, and tradeoffs. Use when the user asks for a stress
+  test, to be challenged or grilled, or to pressure-test a proposal before
+  committing; use sequential or batch questioning as the situation requires.
 license: MIT
 source:
   - https://github.com/mattpocock/skills/tree/main/skills/productivity/grilling
   - https://github.com/mattpocock/skills/tree/fde4cd58cf9d53e6fc287c445f33253645364311/skills/in-progress/batch-grill-me
 ---
 
-# Grilling
+# Stress Test
 
 Stress-test the user's thinking until every material decision is explicit and
 shared understanding is confirmed. This skill does not enact the result.
@@ -48,7 +47,10 @@ Use this mode for a focused, conversational interview.
 
 1. Ask the next unresolved decision whose prerequisites are settled.
 2. Ask exactly one question, including its recommendation, then wait for the
-   answer. Do not combine questions.
+   answer. Do not combine questions. The entire turn must contain exactly one
+   question mark; put the recommendation before that question and end the turn
+   immediately after it. Declaring the chosen mode is not a question: do not
+   append a confirmation such as "does that work?" or "what is your decision?".
 3. Incorporate the answer, identify the next unlocked decision, and repeat.
 
 ## Batch mode
@@ -78,7 +80,7 @@ to request that action.
 ## Gotchas
 
 - In sequential mode, multiple questions at once defeat the mode; ask one and
-  wait.
+  wait. Do not add a second confirmation question after it.
 - In batch mode, asking a dependent question in the same round forces the user
   to guess; defer it until its prerequisites are settled.
 - Do not turn fact-finding into homework for the user when the environment or

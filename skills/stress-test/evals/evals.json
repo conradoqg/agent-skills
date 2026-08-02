@@ -1,0 +1,76 @@
+{
+  "skill_name": "stress-test",
+  "evals": [
+    {
+      "id": "sequential-enterprise-migration",
+      "prompt": "Faça um stress test sequencial deste plano: migrar todos os clientes enterprise para o novo sistema de cobrança na sexta-feira. A recomendação de produto é migrar por elegibilidade; o problema é que não sabemos se créditos manuais e cláusulas contratuais foram mapeados.",
+      "expected_output": "Uma primeira pergunta única, com recomendação, que resolva a decisão mais importante antes de avançar com a migração.",
+      "assertions": [
+        {
+          "criterion": "Disciplina do modo sequencial",
+          "threshold": 9,
+          "rubric": {
+            "0": "Aprova a migração ou faz várias perguntas.",
+            "5": "Aponta riscos, mas não formula uma decisão única.",
+            "9": "Faz exatamente uma pergunta decisória com recomendação e aguarda a resposta.",
+            "10": "Além do nível 9, prioriza explicitamente elegibilidade, créditos ou obrigações contratuais como pré-requisito da migração."
+          }
+        },
+        {
+          "criterion": "Não assumir condição crítica",
+          "threshold": 8,
+          "rubric": {
+            "0": "Assume que todos são elegíveis ou que o mapeamento está pronto.",
+            "5": "Menciona risco sem impedir a conclusão.",
+            "8": "Trata a condição crítica como não resolvida e não recomenda executar a migração ainda.",
+            "10": "Também explica como a resposta desbloqueia as próximas decisões."
+          }
+        }
+      ]
+    },
+    {
+      "id": "batch-marketplace-launch",
+      "prompt": "Use modo batch para stress-testar o lançamento de uma redução de comissão em um marketplace nacional. Sabemos que duas cidades têm falta de oferta, quatro têm excesso, e uma redução ampla pode deixar categorias abaixo da margem mínima.",
+      "expected_output": "Uma rodada batch com decisões independentes de fronteira, recomendação por pergunta e sem misturar decisões que dependem uma da outra.",
+      "assertions": [
+        {
+          "criterion": "Fronteira batch bem formada",
+          "threshold": 8,
+          "rubric": {
+            "0": "Recomenda uma redução nacional sem investigação.",
+            "5": "Lista riscos sem perguntas decisórias organizadas.",
+            "8": "Apresenta uma rodada numerada de decisões independentes sobre segmentação, margem e sucesso do teste.",
+            "10": "Também separa claramente decisões posteriores que dependem dessas respostas."
+          }
+        },
+        {
+          "criterion": "Recomendações e guardrails",
+          "threshold": 8,
+          "rubric": {
+            "0": "Não oferece recomendação nem limite operacional.",
+            "5": "Dá recomendações vagas.",
+            "8": "Inclui uma recomendação por questão e evita tratar a redução ampla como padrão.",
+            "10": "Propõe experimento segmentado com guardrail de margem e critério de sucesso."
+          }
+        }
+      ]
+    },
+    {
+      "id": "boundary-factual-explanation",
+      "prompt": "Explique em duas frases o que é deployment blue-green.",
+      "expected_output": "Uma explicação direta e curta de deployment blue-green, sem iniciar entrevista ou stress test.",
+      "assertions": [
+        {
+          "criterion": "Ausência de ativação indevida",
+          "threshold": 9,
+          "rubric": {
+            "0": "Inicia um questionário ou pede modo sequencial/batch.",
+            "5": "Explica o conceito, mas adiciona um processo de stress test irrelevante.",
+            "9": "Responde diretamente ao pedido factual sem entrevista.",
+            "10": "Também mantém a resposta em aproximadamente duas frases e tecnicamente correta."
+          }
+        }
+      ]
+    }
+  ]
+}

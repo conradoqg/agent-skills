@@ -1,0 +1,76 @@
+{
+  "skill_name": "what-if-oracle",
+  "evals": [
+    {
+      "id": "deep-supplier-price-shock",
+      "prompt": "Use o What-If Oracle para analisar: e se nosso fornecedor principal elevar os preços em 30% no próximo trimestre? Hoje ele fornece 70% dos componentes e nossa margem bruta é de 24%.",
+      "expected_output": "Uma análise Deep Oracle com cenários diferenciados, premissas, sinais observáveis, consequências e ações robustas; probabilidades devem ser tratadas como estimativas.",
+      "assertions": [
+        {
+          "criterion": "Mapa de possibilidade completo",
+          "threshold": 8,
+          "rubric": {
+            "0": "Dá uma única previsão.",
+            "5": "Lista cenários sem lógica ou diferenciação.",
+            "8": "Cobre melhor caso, provável, pior caso, curinga, contrarian e segunda ordem com narrativas distintas.",
+            "10": "Também explicita premissas, gatilhos precoces e horizonte temporal por cenário."
+          }
+        },
+        {
+          "criterion": "Decisões robustas sob incerteza",
+          "threshold": 8,
+          "rubric": {
+            "0": "Trata as probabilidades como certezas ou só recomenda trocar de fornecedor.",
+            "5": "Oferece ações genéricas.",
+            "8": "Propõe ações robustas, hedges e gatilhos que funcionam em múltiplos cenários.",
+            "10": "Distingue claramente ações imediatas, monitoramento e decisões condicionais."
+          }
+        }
+      ]
+    },
+    {
+      "id": "quick-ai-support-automation",
+      "prompt": "Faça um Quick Oracle: e se automatizarmos 40% dos tickets de suporte ao cliente nos próximos seis meses?",
+      "expected_output": "Um Quick Oracle conciso com os ramos melhor, provável e pior, mais uma síntese prática sem fingir prever o futuro.",
+      "assertions": [
+        {
+          "criterion": "Respeito ao modo rápido",
+          "threshold": 8,
+          "rubric": {
+            "0": "Ignora o pedido ou produz uma previsão única.",
+            "5": "Menciona três cenários sem relação com a decisão.",
+            "8": "Fornece melhor, provável e pior caso concisos com riscos e sinais relevantes.",
+            "10": "Também adapta as respostas a qualidade, escalonamento humano e experiência do cliente."
+          }
+        },
+        {
+          "criterion": "Humildade probabilística",
+          "threshold": 9,
+          "rubric": {
+            "0": "Afirma saber o que ocorrerá.",
+            "5": "Usa probabilidades sem ressalva.",
+            "9": "Apresenta probabilidades como estimativas condicionais, não como previsão ou certeza.",
+            "10": "Também nomeia evidência ou sinais que devem atualizar a avaliação."
+          }
+        }
+      ]
+    },
+    {
+      "id": "boundary-protocol-definition",
+      "prompt": "O que significa o status HTTP 503?",
+      "expected_output": "Uma explicação factual e curta de HTTP 503, sem fabricar uma análise de futuros incertos.",
+      "assertions": [
+        {
+          "criterion": "Ausência de ativação indevida",
+          "threshold": 9,
+          "rubric": {
+            "0": "Cria cenários de futuro ou diz que precisa rodar o Oracle.",
+            "5": "Dá a definição, mas acrescenta análise especulativa irrelevante.",
+            "9": "Responde diretamente que o serviço está indisponível, sem cenário especulativo.",
+            "10": "Também menciona que a indisponibilidade costuma ser temporária ou por sobrecarga/manutenção."
+          }
+        }
+      ]
+    }
+  ]
+}

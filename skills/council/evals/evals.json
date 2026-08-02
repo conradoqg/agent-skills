@@ -1,0 +1,76 @@
+{
+  "skill_name": "council",
+  "evals": [
+    {
+      "id": "identity-consolidation-council",
+      "prompt": "Rode um council sobre consolidar automaticamente contas de produtos adquiridos pelo mesmo e-mail. Isso reduziria fricção de login, mas alguns clientes usam aliases e a pessoa pode ter permissões financeiras em apenas um produto.",
+      "expected_output": "Uma deliberação multi-perspectiva que separe autenticação, vínculo de identidade e autorização, exponha divergências e entregue um veredito acionável.",
+      "assertions": [
+        {
+          "criterion": "Perspectivas materiais e desacordo",
+          "threshold": 8,
+          "rubric": {
+            "0": "Aceita a consolidação automática sem análise.",
+            "5": "Cita riscos genéricos de segurança.",
+            "8": "Contrasta pelo menos perspectivas de produto/experiência, segurança e arquitetura ou operação.",
+            "10": "Mostra desacordo ou cross-examination concreto entre as perspectivas."
+          }
+        },
+        {
+          "criterion": "Veredito seguro e acionável",
+          "threshold": 8,
+          "rubric": {
+            "0": "Recomenda mesclar tudo por e-mail.",
+            "5": "Rejeita a proposta sem alternativa.",
+            "8": "Recomenda login central ou vínculo confirmado, preservando autorização separada.",
+            "10": "Também define rollout, métricas ou condições para reconsiderar a decisão."
+          }
+        }
+      ]
+    },
+    {
+      "id": "incident-response-council",
+      "prompt": "Quero múltiplas perspectivas para decidir se desabilitamos imediatamente a exportação de dados depois de detectar uma possível exposição por link público. Clientes corporativos dependem dela para operar hoje, mas não sabemos quantos links foram acessados.",
+      "expected_output": "Um council que trate contenção, impacto ao cliente, investigação e comunicação, sem forçar consenso artificial.",
+      "assertions": [
+        {
+          "criterion": "Cobertura de trade-offs do incidente",
+          "threshold": 8,
+          "rubric": {
+            "0": "Foca apenas em disponibilidade ou apenas em segurança.",
+            "5": "Lista ações sem explicar o conflito entre elas.",
+            "8": "Equilibra contenção, preservação de evidências, continuidade e comunicação.",
+            "10": "Distingue ação imediata reversível de decisões que exigem investigação adicional."
+          }
+        },
+        {
+          "criterion": "Veredito com incerteza explícita",
+          "threshold": 8,
+          "rubric": {
+            "0": "Declara certeza sem evidência.",
+            "5": "Reconhece incerteza, mas não chega a uma posição.",
+            "8": "Dá recomendação provisória, confiança e onde ela pode estar errada.",
+            "10": "Também apresenta gatilhos para revisar a decisão e próximos passos de investigação."
+          }
+        }
+      ]
+    },
+    {
+      "id": "boundary-simple-definition",
+      "prompt": "O que significa o código HTTP 404?",
+      "expected_output": "Uma definição direta de HTTP 404, sem painel, personas ou deliberação artificial.",
+      "assertions": [
+        {
+          "criterion": "Ausência de falso positivo",
+          "threshold": 9,
+          "rubric": {
+            "0": "Inventa um council para uma definição simples.",
+            "5": "Responde, mas adiciona perspectivas irrelevantes.",
+            "9": "Dá uma definição direta e correta sem simular membros do council.",
+            "10": "Também explica de forma concisa que o recurso solicitado não foi encontrado."
+          }
+        }
+      ]
+    }
+  ]
+}
