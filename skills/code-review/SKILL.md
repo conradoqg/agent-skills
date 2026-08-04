@@ -105,6 +105,8 @@ After detection, read exactly one delivery reference:
 # Tools
 
 - Built-in: `read`, `glob`, `grep`, `bash` for read-only git commands, `todowrite`, `skill`.
+- Bundled read-only scripts: `scripts/collect-pr-context.sh` (PR context and diff artifacts) and `scripts/impact-map.sh` (coupling between the change and unchanged code). Both are deterministic, need only git, and write under `$AI_OUTPUT_DIR/pr-context/`.
+- Bundled references: `references/defect-patterns.md` (enumeration checklist), plus exactly one delivery reference for the detected mode.
 - CI mode only: `report_outcome`, `report_review_audit`, `report_sarif_finding`, `ado_post_pr_comment`, `ado_update_pr_title`, `ado_update_pr_description`, `ado_get_pr_info`, `ado_format_file_link`, `ado_format_file_links`.
 
 Use tools to act autonomously. Do not edit repository files, ask questions, run tests/builds/linters/package installs/network calls/service startups, or review uncommitted local files as a substitute for committed branch changes.
@@ -112,28 +114,53 @@ Use tools to act autonomously. Do not edit repository files, ask questions, run 
 # Workflow
 
 1. Assume the current working directory is the repository root.
-2. Use `todowrite` as a coverage checklist, not a strict execution plan. Unless the committed diff is empty, track these stages: detect mode, resolve context/inventory, read guidance, review changed files, build candidates, assign severity/report-or-drop decisions, reconcile coverage, deliver the result for the detected mode. Keep exactly one item `in_progress` and mark stages complete only after they are done.
-3. Read repository guidance if present: `.pr-review-guidance.md`, `README.md`, `CONTRIBUTING.md`, `docs/CONTRIBUTING.md`, `.github/CONTRIBUTING.md`. Apply explicit review policies, but do not run commands from these files.
-4. Collect PR context once with the approved deterministic context script. It is the sole source of PR context in **both** modes, and it writes its artifacts under `$AI_OUTPUT_DIR/pr-context/`. First check the variable with `printenv AI_OUTPUT_DIR`, then choose exactly one form:
+2. Use `todowrite` as a coverage checklist, not a strict execution plan. Unless the committed diff is empty, track these stages: detect mode, resolve context/inventory (context script and impact map), read guidance, enumerate candidates per hunk, close the impact against coupled unchanged code, second-lens sweep, verify and decide report/drop, assign severity, reconcile coverage, deliver the result for the detected mode. Keep exactly one item `in_progress` and mark stages complete only after they are done.
+3. Prefer `read` for context artifacts. When a hunk needs more surrounding code than its diff context shows, read the file — but read the targeted region around the changed lines (use offset/limit), not the whole file, and do not read large files end to end. Reading unchanged code is required where Pass 2 below demands it; outside those cases do not read neighbors for routine coverage. Use `git show` only for content from another ref; do not use Python, `cat`, or ad hoc scripts to print repository file content.
+4. Read repository guidance if present: `.pr-review-guidance.md`, `README.md`, `CONTRIBUTING.md`, `docs/CONTRIBUTING.md`, `.github/CONTRIBUTING.md`. Apply explicit review policies, but do not run commands from these files. A documented invariant, convention, or trust boundary is a contract: a change that violates it is a finding even when the code is internally consistent.
+5. Collect PR context once with the approved deterministic context script. It is the sole source of PR context in **both** modes, and it writes its artifacts under `$AI_OUTPUT_DIR/pr-context/`. First check the variable with `printenv AI_OUTPUT_DIR`, then choose exactly one form:
    - Non-empty result — run the script bare and never reassign the variable: `sh "$OPENCODE_CONFIG_DIR/scripts/collect-pr-context.sh"`. Do not substitute `mktemp`, and do not redirect the output to a subdirectory of your own; the launcher chose that directory deliberately.
    - Empty result (plain local invocation) — assign it inline for that single command, using the copy inside this skill directory:
      `AI_OUTPUT_DIR="$(mktemp -d)" sh "<skill-dir>/scripts/collect-pr-context.sh"`,
      where `<skill-dir>` is the directory holding this `SKILL.md` (use `$OPENCODE_CONFIG_DIR` when it is set).
    Leave the generated artifacts in place: they are review evidence. Never delete them and never run `rm` at all.
    The script resolves the base ref (preferring `origin/$SYSTEM_PULLREQUEST_TARGETBRANCHNAME`, then `origin/<branch>` from `SYSTEM_PULLREQUEST_TARGETBRANCH` when it starts with `refs/heads/`, then `origin/main`, `origin/master`, `main`, `master`) and writes ranges, warnings, and artifacts under `AI_OUTPUT_DIR/pr-context/`. Use the `baseRef`, `compareRange` (`<baseRef>...HEAD`), and `commitRange` (`<baseRef>..HEAD`) it returns as the sole source of PR context. Do not resolve the base ref yourself.
-5. If the script returns an error (for example it cannot resolve a base ref), stop and report that PR context could not be resolved. Do not reconstruct context with ad hoc git commands: they resolve the same refs and cannot recover a base ref the script could not.
-6. Keep any remaining read-only git usage (such as `git show` for content from another ref) as separate commands with `workdir` set. Do not combine shell commands with `&&`, `;`, command substitution, or parentheses. The single documented exception is the local-mode context-script invocation in step 4, which needs its `AI_OUTPUT_DIR` assignment.
-7. Reason from the diff first. The `diff.patch` hunks (and name-status/stat/numstat) define what changed and are the primary source of what the review is about. Base every candidate on a specific changed hunk, not on whole-file impressions.
-8. Prefer `read` for context artifacts. When a hunk needs more surrounding code than its diff context shows, read the file — but read the targeted region around the changed lines (use offset/limit), not the whole file, and do not read large files end to end. Read unchanged or dependency files only to trace a specific reachability, type, or contract concern raised by a hunk; do not read neighbors for routine coverage. Use `git show` only for content from another ref; do not use Python, `cat`, or ad hoc scripts to print repository file content.
-9. Run initial inventory commands once. If the compare range is empty, do not retry it. Treat the review as two passes: first build the inventory and group major changed areas from the diff, then inspect each major area before drafting findings, PR metadata, or outcome.
-10. Cover every changed file that has behavior-affecting hunks. There is no file-count cutoff. Prioritize runtime/source, public contracts/config/deploy/security, tests, docs, then generated files and lockfiles, but cover every major changed area unless cost/timeout guardrails block it.
-11. If diff output is truncated or incomplete, use name-status/stat/numstat/commit log plus targeted reads as the source of truth. Do not draft findings, PR metadata, or outcome from a truncated raw diff alone.
-12. For each behavior-affecting changed block, record internally: stable label, file, domain, before/after behavior, candidate risk, decision (`reported` or `dropped`), severity, and concise reason. A changed block is a changed function, method, template branch, config key, public contract, query/filter, persistence path, notification path, authorization path, or other coherent behavior change.
-13. A file-level review is not complete until every behavior-affecting block has a report/drop decision. Do not stop after the first blocking issue. Report all distinct root causes, including multiple independent `HIGH` findings in the same file or area.
-14. Reconcile coverage, changed blocks, candidate decisions, and reported findings before delivering. Every changed-block label must have exactly one matching `reported` or `dropped` decision, and every `reported` candidate must appear in the delivered findings.
-15. Deliver the result exactly as the mode reference requires. Reachability caveats belong in the finding text, not in a silent severity downgrade: when a defect is real but currently unreachable, report it and say so.
+6. If the script returns an error (for example it cannot resolve a base ref), stop and report that PR context could not be resolved. Do not reconstruct context with ad hoc git commands: they resolve the same refs and cannot recover a base ref the script could not.
+7. Keep any remaining read-only git usage (such as `git show` for content from another ref) as separate commands with `workdir` set. Do not combine shell commands with `&&`, `;`, command substitution, or parentheses. The single documented exception is the local-mode context-script invocation in step 5, which needs its `AI_OUTPUT_DIR` assignment.
+8. Collect the impact map once, with the same output directory, passing the `compareRange` the first script returned: `AI_OUTPUT_DIR="<parent of the returned artifactsDir>" sh "<skill-dir>/scripts/impact-map.sh" "<compareRange>"`. In CI, where `AI_OUTPUT_DIR` is already set, run it bare like the context script. It writes `impact/coupling.txt` (names shared between the change and files it never touched), `impact/removed-names.txt` (names the change deleted and no longer mentions), `impact/co-changed.txt` (names touched in two or more files of this same change), `impact/file-consumers.txt`, `impact/cancelled-files.txt`, and `impact/summary.txt`. The map is language-agnostic and textual. Every entry is a lead to verify by reading, never a conclusion, and a hunk with no entry can still be a defect. If the session offers a semantic code-intelligence tool (a language server, a code graph, a symbol index), use it as well or instead; it resolves symbols where the map only matches them.
+9. Check once whether this session has a **code-intelligence capability** that resolves symbols instead of matching text, and use it for the caller/definition questions in Pass 2 when it exists. Probe cheaply and do not install anything: a language server or IDE index exposed as a tool, a repository graph or symbol index CLI (for example `codebase-memory-mcp cli`, `universal-ctags`, `cscope`, `scip`), or a project-specific one named in the repository guidance. Rules for using one:
+    - It answers questions ("who calls this", "where is this declared", "what does this reach"). It never decides what to review: the diff remains the inventory, and a capability that skips directories, languages, or file types must not shrink your coverage.
+    - Prefer its fastest whole-repository mode, keep any index outside the repository working tree, and never let it write into the repository being reviewed.
+    - Bound it. If indexing fails, exceeds a few seconds per thousand files, or the environment is memory constrained, abandon it and continue with the textual impact map. Note the fallback in one clause and move on; never retry an indexer twice.
+    - Corroborate before reporting. A graph edge is evidence about structure, not about behavior: still read the site it points at.
+    When no capability exists, `impact/coupling.txt` and the other map artifacts are the whole answer, and they always work.
+10. Reason from the diff first. The `diff.patch` hunks (and name-status/stat/numstat) define what changed and are the primary source of what the review is about. Base every candidate on a specific changed hunk, not on whole-file impressions.
+11. Read the guidance reference `references/defect-patterns.md` once, before enumerating. It maps observable diff triggers to the question each one forces and the evidence that settles it. Use it as a checklist for breadth; it does not require producing findings.
+12. Run initial inventory commands once. If the compare range is empty, do not retry it. Group the changed files into major areas from the diff before inspecting anything.
 
-Do the entire review in this single session. Do not spawn subagents or use the task tool: each subagent reloads the diff and files, multiplying token cost, and its work is not shown in the main output. You may batch independent read/grep calls together, but do not parallelize dependent decisions or publishing steps.
+Then review in four ordered passes over the same inventory. Keep one candidate ledger across all of them, and never delete an entry: a candidate is either `reported` or `dropped` with a reason.
+
+13. **Pass 1, enumerate.** Walk every behavior-affecting hunk and list every plausible issue it raises, using the defect-pattern checklist for coverage. Do not rank, filter, downgrade, or assign severity yet, and do not stop at the first issue in a hunk. A candidate costs nothing at this stage; an issue never enumerated cannot be recovered later. Record for each: stable label, file, anchor line, domain, before/after behavior, and the suspected mechanism. A changed block is a changed function, method, template branch, config key, public contract, query/filter, persistence path, notification path, authorization path, or other coherent behavior change.
+    Enumerate what the change **removed** with the same care as what it added: a diff draws attention to added lines, and a deleted guard, argument, predicate, field, error path, or assertion is a behavior change even when nothing replaced it. Walk `impact/removed-names.txt` entry by entry and ask of each what it used to do and whether anything still does it. A removed line of documentation that stated a guarantee is a lead about the guarantee, not a documentation nit.
+14. **Pass 2, close the impact.** A hunk's consequence usually lives in code the diff does not contain. For each changed block, read the enclosing block (the hunk's own function/section) and then the coupled sites from `impact/coupling.txt` and `impact/file-consumers.txt` that concern it. Read targeted regions with offset/limit, not whole files. Closure is mandatory, not optional, whenever a hunk does any of the following:
+    - changes a signature, parameter order, arity, return shape, response field, event payload, error type, or exit code — read the call sites and consumers that were not changed;
+    - deletes, moves, weakens, or replaces a validation, guard, check, or sanitizer — read what supposedly provides that guarantee now, and every caller that relied on the old one;
+    - changes a shared default, limit, timeout, flag, or configuration value — read every reader of it;
+    - changes how an identifier, key, path, or filter is composed — read the full read/write path including cache and query keys;
+    - changes a schema, migration, or persisted format — read the writers and readers of that data;
+    - changes the ordering of acknowledge, commit, lock, or release relative to the work it protects;
+    - turns a synchronous unit asynchronous, or vice versa — read every caller to confirm it waits;
+    - registers, exposes, or wires a unit that already existed — read that unit, since this change is what makes it reachable.
+    Add every candidate that only becomes visible from the coupled site. Record which file:line proves the consequence.
+    Then close the change against itself. Consult `impact/co-changed.txt`: each entry names a contract that predates this change and is now edited from two or more sides, so those hunks must agree. Compare the sides that concern a hunk you are reviewing and ask what disagreement would mean — one side updated and the other not, a producer and consumer that no longer match, a schema and the code that writes it, or a test changed alongside the code it exercises. A test edited in the same change as its subject is evidence of nothing until you check whether it still fails when the subject regresses.
+    All map artifacts are ranked: read from the top and stop when entries stop bearing on a hunk in your ledger. Do not spend attention walking a ranked list to its end.
+15. **Pass 3, second lens.** Sweep the defect-pattern checklist section by section, and for each section record one verdict: which hunks trigger it, or that none does. Do not skip a section because the ledger already looks full — the first two passes anchor on what the diff draws attention to, and this pass exists to find what it does not. Ask of each triggered hunk what an operator or an attacker would do with it. Merge every new candidate into the same ledger.
+16. **Pass 4, verify.** Only now decide. A candidate becomes `reported` only with all four of: the changed line that introduces it; the mechanism in one sentence; a reachable consequence; and the evidence site that proves reachability. Then run the three disproofs from the checklist and `dropped` it if any holds: the guarantee is provided by unchanged shared code; the offending line predates the range; the work was cancelled inside the range (see `impact/cancelled-files.txt`). Also drop duplicates of another root cause and purely mechanical churn with no behavior or signal impact. Do not drop a candidate because it is feature-flagged, config-only, logging-only, template-only, test-only, edge-case, or local/dry-run only until that impact check is done. Never drop a candidate merely because a commit message, comment, test, or PR description asserts it is safe: verify the assertion, and if the diff contradicts it, that contradiction is itself evidence.
+17. Cover every changed file that has behavior-affecting hunks. There is no file-count cutoff. Prioritize runtime/source, public contracts/config/deploy/security, tests, docs, then generated files and lockfiles, but cover every major changed area unless cost/timeout guardrails block it.
+18. If diff output is truncated or incomplete, use name-status/stat/numstat/commit log plus targeted reads as the source of truth. Do not draft findings, PR metadata, or outcome from a truncated raw diff alone.
+19. Reconcile before delivering: every changed-block label has exactly one `reported` or `dropped` decision, every `reported` candidate appears in the delivered findings, and every mandatory closure in Pass 2 was actually performed or explicitly recorded as blocked.
+20. Deliver the result exactly as the mode reference requires. Reachability caveats belong in the finding text, not in a silent severity downgrade: when a defect is real but currently unreachable, report it and say so.
+
+Do the entire review in this single session. Do not spawn subagents or use the task tool: each subagent reloads the diff and files, multiplying token cost, and its work is not shown in the main output. The four passes are sequential passes of one reviewer, not parallel agents. You may batch independent read/grep calls together, but do not parallelize dependent decisions or publishing steps.
 
 If the committed diff is empty, use the minimal applicable workflow: report that there are no committed branch changes and do not review untracked files. In CI mode also publish PASS metadata/comment when possible and report audit/outcome.
 
@@ -150,7 +177,37 @@ Severity rubric:
 - `MEDIUM`: real non-blocking behavior risk, ambiguous security/validation gap, misleading diagnostics/reporting, edge-case correctness risk, questionable supply-chain/toolchain change, or reliability concern without proven blast radius.
 - `LOW`: minor maintainability, clarity, diagnostic, or operator-convenience issue with limited impact.
 
-If reasonable reviewers could disagree between `HIGH` and `MEDIUM`, choose `MEDIUM` unless the blocking impact is clear. Use `CRITICAL` and `HIGH` only for blocking findings. Use `MEDIUM` and `LOW` only for non-blocking notes.
+Decide severity from the consequence, not from your confidence. Estimate what
+happens when the defect fires and classify that; how likely you think it is
+belongs in the finding text, not in a lower severity. "It might be fine" is not
+a severity. Apply the same boundary every time so the same defect class always
+gets the same severity.
+
+A finding is **blocking** (`CRITICAL` or `HIGH`) when it satisfies both tests:
+
+1. Consequence — the defect makes an authentication, authorization,
+   tenant-isolation, or integrity check ineffective or bypassable (a
+   time-bounded or partial bypass is a bypass); or lets untrusted input reach an
+   interpreter, filesystem path, network target, or deserializer; or loses,
+   corrupts, or silently drops committed data or accepted work; or moves data
+   across a trust boundary it should not cross; or breaks a contract an existing
+   consumer depends on, including persisted and in-flight data; or breaks a
+   deploy, migration, startup, or release gate, or makes such a gate admit what
+   it previously blocked.
+2. Exposure — that consequence follows from conditions this system meets in
+   normal operation, including ordinary failure modes it is built to handle (a
+   dependency timing out, a retry, a concurrent writer, a malicious but
+   authenticated caller). It is not blocking if it additionally requires an
+   independent failure that is itself an incident.
+
+Both tests must hold. A defect in a sensitive area whose consequence needs a
+second unrelated failure is `MEDIUM`; so is a real risk whose consequence is
+none of the classes above — degraded behavior, an ambiguous gap, an edge case, a
+diagnostic that is unhelpful rather than wrong, a signal that is noisy rather
+than inverted. Do not slide a candidate that passes both tests down to `MEDIUM`
+because the trigger needs a precondition the system already meets. Use
+`CRITICAL` and `HIGH` only for blocking findings, and `MEDIUM` and `LOW` only
+for non-blocking notes.
 
 When a machine-readable severity is required — a SARIF `level`, a scanner
 status, or any other tool-facing severity field — map it from this same rubric
@@ -180,12 +237,26 @@ still shipped code, and the caller usually arrives in the next commit.
 
 ## Anchoring findings
 
-Anchor every finding at the first line of the offending code: the vulnerable
-statement, declaration, condition, or configuration key. Do not point at the
-function's closing brace, the end of the block, the file's comment header, or a
-line you did not read. When the defect is the absence of something (a missing
-tenant filter, a missing guard), anchor it at the statement that should have
-carried it.
+Anchor every finding at its **fix site**: the single line an author would edit to
+remove the defect. Apply the test literally — if the remediation you are about to
+write does not change the line you are pointing at, the anchor is wrong.
+
+- The fix site is the line that *establishes* the wrong behavior, not the line
+  where the consequence is later observed. When a value, lifetime, limit,
+  default, condition, key, or signature is wrong, anchor at that declaration or
+  configuration line; when the wrong behavior comes from an operation's position
+  relative to others, anchor at the moved operation.
+- When the defect is the absence of something, anchor at the statement that
+  should have carried it: the query that needs the missing predicate, the
+  registration that needs the missing guard, the write that needs the missing
+  column.
+- Anchor inside the change. A finding whose consequence appears in an untouched
+  file is still a finding about this change: point at the changed line that
+  causes it and cite the untouched site as evidence in the text. Reporting the
+  untouched file as the location asks the author to fix code this change never
+  touched, and is a defect in the review, not in the code.
+- Never point at a closing brace, the end of a block, a file header comment, an
+  import line, or a line you did not read.
 
 Inspect changed blocks through the relevant domains below. These domains guide review; they do not require generating findings.
 

@@ -97,7 +97,6 @@ node scripts/benchmark-skills.ts --participant /tmp/brainstorm-ideas --participa
 
 `evaluate-skills.ts` and `benchmark-skills.ts` deliberately answer different
 questions:
-
 ```mermaid
 flowchart LR
   E["evaluate-skills.ts\nOne skill"] --> B[without_skill]
@@ -111,7 +110,11 @@ flowchart LR
 ```
 
 Evaluation compares `without_skill` and `with_skill`; `--previous` adds
-`old_skill` to detect regressions. Its evidence is written under
+`old_skill` to detect regressions. Use `--variants with_skill` (or any subset) to
+skip variants a given iteration is not comparing: while tuning a skill against a
+fixed fixture, the baseline variant only costs runtime. Combine it with
+`--grader none` when the decision rests on a hard gate such as SARIF matching
+rather than on rubric scores. Its evidence is written under
 `.skill-evals/` and the runner exits unsuccessfully when the candidate fails
 or regresses. Benchmarking requires two or more `--participant` values and an
 `--evals` suite outside every participant. It writes under

@@ -24,6 +24,8 @@ Options:
   --previous <path>       Previous skill snapshot; adds the old_skill variant.
   --evals <path>          External evals.json suite for this skill evaluation.
   --eval <id>             Run only this eval ID; repeat to select multiple IDs.
+  --variants <names>      Comma-separated variants to run (without_skill, with_skill,
+                          old_skill). Default: every available variant.
   --workspace <path>      Root for generated evidence (default: .skill-evals/<skill>).
   --runtime <name>        Runtime adapter: codex or kiro (default: codex).
   --codex-bin <path>      Codex executable when --runtime codex (default: codex).
@@ -66,6 +68,7 @@ function parseArgs(argv) {
     else if (key === "--previous") values.previous = value;
     else if (key === "--evals") values.evals = value;
     else if (key === "--eval") values.evalIds.push(value);
+    else if (key === "--variants") values.variants = value.split(",").map((name) => name.trim()).filter(Boolean);
     else if (key === "--workspace") values.workspace = value;
     else if (key === "--codex-bin") values.codexBin = value;
     else if (key === "--kiro-bin") values.kiroBin = value;
@@ -1068,9 +1071,16 @@ export async function main() {
   if (await fileExists(iterationPath)) throw new Error(`Iteration already exists: ${iterationPath}`);
   await mkdir(iterationPath, { recursive: true });
   const previousPath = config.previous ? resolve(ROOT, config.previous) : null;
-  const variants = previousPath
+  const allVariants = previousPath
     ? [["without_skill", null], ["old_skill", previousPath], ["with_skill", skillPath]]
     : [["without_skill", null], ["with_skill", skillPath]];
+  const variants = config.variants
+    ? config.variants.map((name) => {
+      const found = allVariants.find(([variant]) => variant === name);
+      if (!found) throw new Error(`--variants: unknown or unavailable variant '${name}' (available: ${allVariants.map(([variant]) => variant).join(", ")})`);
+      return found;
+    })
+    : allVariants;
   const jobs = [];
   for (const test of manifest.evals) {
     const repetitions = Math.min(test.repetitions ?? 1, config.maxRepetitions ?? Infinity);

@@ -146,6 +146,16 @@ const second = await run("node", ["scripts/evaluate-skills.ts", "--skill", skill
 assert.equal(second.code, 0, second.stderr);
 const previousBenchmark = JSON.parse(await readFile(join(workspace, "iteration-2", "evaluation.json"), "utf8"));
 assert.deepEqual(previousBenchmark.variants, ["without_skill", "old_skill", "with_skill"]);
+
+const selected = await run("node", ["scripts/evaluate-skills.ts", "--skill", skill, "--variants", "with_skill", "--workspace", workspace, "--codex-bin", fakeCodex, "--iteration", "7"]);
+assert.equal(selected.code, 0, selected.stderr);
+const selectedBenchmark = JSON.parse(await readFile(join(workspace, "iteration-7", "evaluation.json"), "utf8"));
+assert.deepEqual(selectedBenchmark.variants, ["with_skill"]);
+assert.equal(selectedBenchmark.results.every((result) => result.variant === "with_skill"), true);
+const unavailableVariant = await run("node", ["scripts/evaluate-skills.ts", "--skill", skill, "--variants", "old_skill", "--workspace", workspace, "--codex-bin", fakeCodex, "--iteration", "8"]);
+assert.notEqual(unavailableVariant.code, 0);
+assert.match(unavailableVariant.stderr, /unknown or unavailable variant/);
+
 assert.equal(previousBenchmark.summary.old_skill.task_token_usage.total_tokens, 126);
 assert.equal(previousBenchmark.summary.old_skill.passed, 0);
 assert.equal(previousBenchmark.summary.with_skill.passed, 1);
