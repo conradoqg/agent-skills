@@ -152,6 +152,22 @@ Severity rubric:
 
 If reasonable reviewers could disagree between `HIGH` and `MEDIUM`, choose `MEDIUM` unless the blocking impact is clear. Use `CRITICAL` and `HIGH` only for blocking findings. Use `MEDIUM` and `LOW` only for non-blocking notes.
 
+When a machine-readable severity is required — a SARIF `level`, a scanner
+status, or any other tool-facing severity field — map it from this same rubric
+and never re-derive it per tool:
+
+| Severity | Machine level |
+| --- | --- |
+| `CRITICAL` | `error` |
+| `HIGH` | `error` |
+| `MEDIUM` | `warning` |
+| `LOW` | `note` |
+
+Blocking findings are therefore always `error`. Never emit `note` for a
+security, authorization, tenant-isolation, data-loss, supply-chain, or
+broken-contract finding: if it belongs in the report at all, it is at least
+`warning`. Use `none` only for informational context that is not a finding.
+
 ## Severity of newly added code
 
 Severity follows the defect class and the intended use of the code, not how much

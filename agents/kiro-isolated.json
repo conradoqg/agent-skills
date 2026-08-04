@@ -1,0 +1,14 @@
+{
+  "name": "kiro-isolated",
+  "description": "Neutral Kiro agent for skill evaluations. Loads no MCP servers: the global mcp.json handshake (notably codebase-memory-mcp) grows kiro-cli to ~29GB RSS, and earlyoom then SIGTERMs the non-interactive run mid-task, before required artifacts are written. Evaluated skills only need the built-in read/grep/glob/shell/write tools.",
+  "prompt": null,
+  "mcpServers": {},
+  "tools": ["*"],
+  "toolAliases": {},
+  "allowedTools": ["*"],
+  "resources": [],
+  "hooks": {},
+  "toolsSettings": {},
+  "includeMcpJson": false,
+  "model": null
+}

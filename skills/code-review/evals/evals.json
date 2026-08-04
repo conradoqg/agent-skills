@@ -103,15 +103,15 @@
     {
       "id": "large-multi-domain-review",
       "prompt": "Run the code-review skill directly on this repository, in local mode. This is a large multi-commit change: inventory the diff, prioritize reachable regressions, and deliver the local artifacts for the user.",
-      "expected_output": "Local-mode delivery whose review result spans authorization/tenant isolation, input security, data and cache safety, async reliability, API/config compatibility, CI/deploy supply chain, and tests/observability.",
+      "expected_output": "Local-mode delivery whose review result reports introduced regressions across authorization, tenant isolation, input security, data and cache safety, async reliability, API/config compatibility, CI/deploy supply chain, and tests/observability. Most defects are only reachable through a file the diff does not touch, so impact must be established by reading callers and guarantees outside the changed lines. Code that looks dangerous but is protected elsewhere, defects that predate the base branch, and a defect introduced and reverted inside the range must not be reported.",
       "workspace_zip": "evals/fixtures/large.zip",
       "sarif": {
         "artifact": "review.sarif",
         "ground_truth": "evals/ground-truth/large.json",
         "gates": {
-          "min_recall": 0.5,
-          "min_recall_by_level": { "error": 0.6 },
-          "max_false_positives": 20
+          "min_recall": 0.45,
+          "min_recall_by_level": { "error": 0.55 },
+          "max_false_positives": 10
         }
       },
       "assertions": [
@@ -130,9 +130,9 @@
           "threshold": 8,
           "rubric": {
             "0": "Finds only noise or misses material regressions.",
-            "5": "Finds isolated issues but misses multiple major changed domains.",
-            "8": "Finds concrete introduced regressions across several material domains with paths and impact.",
-            "10": "Covers security, data/reliability, and delivery/contract risks while distinguishing safe churn and pre-existing defects."
+            "5": "Finds isolated issues but misses multiple major changed domains, or judges changed files without checking the callers and guarantees they depend on.",
+            "8": "Finds concrete introduced regressions across several material domains with paths and impact, and establishes reachability through the unchanged callers or guarantees involved.",
+            "10": "Covers security, data/reliability, and delivery/contract risks, and explicitly separates safe churn, code protected by an unchanged guard, defects that predate the base branch, and a defect reverted inside the range."
           }
         }
       ]

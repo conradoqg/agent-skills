@@ -155,6 +155,20 @@ only when all declared gates pass. Reports record recall, recall by level,
 false positives, and failed gates. Keep the ground truth outside `files` and
 never place it in a participant skill.
 
+The annotated ground-truth JSON must be the only place that knows the answer.
+A fixture that marks its own defects — a `// finding:` comment, a giveaway file
+or directory name, a defect-only path convention — measures grep, not review. A
+useful review fixture instead makes impact depend on files the diff does not
+touch, includes code that looks dangerous and is safe, keeps defects that
+predate the base branch, and hides one defect that is introduced and reverted
+inside the range. The `code-review` skill ships one built that way:
+`skills/code-review/evals/fixtures/build-large.mjs` writes both `large.zip` and
+`ground-truth/large.json` in a single deterministic pass, resolves every finding
+line by searching for the offending statement, and refuses to finish when an
+anchor is ambiguous or when the archive contains anything that looks like an
+answer key. Two runs produce a byte-identical archive. Fixtures are static
+inputs: rebuild deliberately, never during an evaluation.
+
 The runner supports authenticated Codex and Kiro CLIs; use `--grader none` to
 capture runs without LLM assertion grading. Codex uses `codex exec --json`
 automatically and records task and grader token usage when terminal JSONL
@@ -176,9 +190,17 @@ Kiro defaults to `claude-sonnet-5` (verified against the available Kiro CLI mode
 Prefer `--kiro-agent-file <path>` over `--kiro-agent <name>` for benchmarking: the
 runner then builds an isolated Kiro `HOME` per run containing only that agent, so no
 global `mcp.json`, steering document, or installed skill can reach a candidate.
+`agents/kiro-isolated.json` is the versioned profile for that purpose.
 Authentication is preserved by linking the existing XDG data directory. This matters
 for correctness as well as neutrality: loading the global MCP set grew `kiro-cli` to
 about 29GB RSS locally until an OOM killer terminated runs mid-review.
+
+```bash
+node scripts/evaluate-skills.ts --skill code-review --runtime kiro \
+  --kiro-agent-file agents/kiro-isolated.json \
+  --kiro-model claude-sonnet-5 --kiro-effort high --kiro-trust-all-tools \
+  --timeout-ms 1800000
+```
 
 Kiro has no documented JSON/token telemetry: the runner preserves stdout/stderr
 logs and duration, and writes every token field as `null` with
