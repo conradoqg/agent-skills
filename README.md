@@ -165,13 +165,20 @@ or directory name, a defect-only path convention — measures grep, not review. 
 useful review fixture instead makes impact depend on files the diff does not
 touch, includes code that looks dangerous and is safe, keeps defects that
 predate the base branch, and hides one defect that is introduced and reverted
-inside the range. The `code-review` skill ships one built that way:
-`skills/code-review/evals/fixtures/build-large.mjs` writes both `large.zip` and
-`ground-truth/large.json` in a single deterministic pass, resolves every finding
-line by searching for the offending statement, and refuses to finish when an
-anchor is ambiguous or when the archive contains anything that looks like an
-answer key. Two runs produce a byte-identical archive. Fixtures are static
-inputs: rebuild deliberately, never during an evaluation.
+inside the range. The `code-review` skill ships two built that way:
+`evals/fixtures/build-large.mjs` and `evals/fixtures/build-polyglot.mjs` each
+write their archive and their `ground-truth/*.json` in a single deterministic
+pass, resolve every finding line by searching for the offending statement, and
+refuse to finish when an anchor is ambiguous or when the archive contains
+anything that looks like an answer key. Two runs produce a byte-identical
+archive. Fixtures are static inputs: rebuild deliberately, never during an
+evaluation.
+
+The two are deliberately disjoint. One is TypeScript with its findings
+concentrated in a single dense directory; the other is Python, Go, SQL, shell and
+YAML with its findings spread about one per directory, drawn from defect classes
+the first has no instance of. A change that helps on only one of them is fitted to
+that one, which is the whole reason for keeping both.
 
 The runner supports authenticated Codex and Kiro CLIs; use `--grader none` to
 capture runs without LLM assertion grading. Codex uses `codex exec --json`

@@ -21,11 +21,11 @@
 # Rarity does the work a stopword list would do: language keywords and generic
 # nouns occur everywhere, so a document-frequency ceiling drops them for free.
 #
-# If a semantic code-intelligence tool is available in the session (a language
-# server, a code graph, an indexer), prefer it: it resolves symbols instead of
-# matching them. This script is the fallback that works in any repository with
-# only git present, and its output is a set of leads to verify by reading, never
-# a set of conclusions.
+# Everything here is textual and needs only git. That is a deliberate floor, not a
+# limitation to apologise for: it works in any repository, in any language, with no
+# index to build and nothing to install. The cost is that a token match cannot tell
+# a call from a comment, so every line of output is a lead to verify by reading and
+# never a conclusion.
 #
 # Usage: sh impact-map.sh <compareRange>
 #   <compareRange> is the value collect-pr-context.sh returned, e.g. main...HEAD
