@@ -90,6 +90,7 @@ archived outside the repository. None is in the skill.
 | Four independent domain lenses over the whole diff instead of one checklist sweep | detect 0.825 on large, 0.933 on polyglot over three runs each |
 | Stating the one-finding-per-fix-site rule, replacing one-per-root-cause | detect 0.848 large / 0.922 polyglot; reported count unchanged at about 19, so the rule did not change behavior |
 | A pre-delivery checker that flags findings whose text names another file | ran in 12 of 12 runs and flagged up to 29 items per run; the reviewer resolved them as evidence rather than splitting, reported count still about 19, detect fell to 0.802 large / 0.867 polyglot |
+| Ordering areas by edited files first instead of by size | unproven, not shipped: detect 0.857 large / 0.933 polyglot at n=5, below per-area-by-size and inside the noise floor. The quota ran out before a larger sample; the mechanical argument is sound and it is three lines of awk, so it is worth retesting |
 | Adding rules to the verification pass, generally | every attempt cost recall; the pass is saturated |
 
 The output count is the striking constant: about 19 findings on the TypeScript
@@ -112,6 +113,24 @@ Two behavioral findings worth more than the numbers:
   fixture's decoys transcribed. Removing them cost about 6pp on that fixture and
   is why the polyglot fixture exists: a change that helps only one fixture is
   fitted to it.
+
+## Running the measurement
+
+Cost is per-run latency, not local resources: a review of one large fixture takes
+about 7 minutes (median over 40 runs, range 3.8–14.6), while a 16-core machine sits
+at load 1.2 with twelve concurrent runs and 7GB of 31GB used.
+
+**Twelve concurrent runs is the ceiling, and it is the API request quota, not the
+machine.** At twenty-four, runs fail with `Kiro rate limit reached: Request quota
+exceeded`, which then surfaces as a misleading `Tool approval required but
+--no-interactive was specified`. Worse, the survivors are the fast runs, so the
+sample is biased toward whatever finished early — a failed batch must be discarded,
+not scored. Sustained measurement also depletes a daily quota: after roughly 200
+reviews in one day, batches begin failing regardless of concurrency.
+
+Plan a comparison accordingly: two versions at ten runs on two fixtures is 40
+reviews, or about four batches and an hour of wall time, and it is the minimum that
+can distinguish a 5pp effect.
 
 ## Before changing this skill
 
