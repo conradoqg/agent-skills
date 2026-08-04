@@ -35,6 +35,7 @@
 #                       occurrences in UNCHANGED files, rarest first
 #   removed-names.txt   names the change deleted and no longer mentions at all
 #   co-changed.txt      rare names touched in two or more files of this change
+#   areas.txt           the change grouped by directory, most changed files first
 #   file-consumers.txt  unchanged files that reference a changed file by name
 #   cancelled-files.txt files touched by commits in the range whose net diff is
 #                       empty: introduced and reverted inside the range
@@ -74,6 +75,7 @@ if [ ! -s "$work/changed" ]; then
 	: >"$out/coupling.txt"
 	: >"$out/removed-names.txt"
 	: >"$out/co-changed.txt"
+	: >"$out/areas.txt"
 	: >"$out/file-consumers.txt"
 	: >"$out/cancelled-files.txt"
 	printf 'no changed files in range %s\n' "$RANGE" >"$out/summary.txt"
@@ -244,6 +246,21 @@ done <"$work/tokens"
 	done <"$work/changed"
 } >"$out/file-consumers.txt"
 
+# Areas of the change. A review that walks a 150-file diff as one list reports
+# whatever stayed salient; a review that closes one area at a time has a place to
+# stop and a place to resume. Grouping is the directory the file lives in, which is
+# the only structure every repository has.
+{
+	printf '# Areas of this change, most changed files first. Review one area at a time and\n'
+	printf '# finish it before starting the next: an area with several changed files is where\n'
+	printf '# a second defect normally goes unreported because the first one already explains\n'
+	printf '# the area. The counts are files and added lines.\n\n'
+	git -c core.quotepath=false diff --numstat "$RANGE" 2>/dev/null |
+		awk -F'\t' '{ n = split($3, parts, "/"); dir = "."; if (n > 1) { dir = parts[1]; for (i = 2; i < n; i++) dir = dir "/" parts[i] } files[dir]++; added[dir] += $1 }
+			END { for (d in files) printf "%6d %8d %s\n", files[d], added[d], d }' |
+		sort -rn | awk '{ printf "%s file(s), %s added line(s)  %s\n", $1, $2, $3 }'
+} >"$out/areas.txt"
+
 # Work the commits did and then undid: present in the history, absent from the
 # net diff, therefore not part of this change and not reportable as a finding.
 commit_range=$(printf '%s' "$RANGE" | sed 's/\.\.\./../')
@@ -298,6 +315,7 @@ printf '"artifacts":{'
 printf '"coupling":"%s",' "$out/coupling.txt"
 printf '"removedNames":"%s",' "$out/removed-names.txt"
 printf '"coChanged":"%s",' "$out/co-changed.txt"
+printf '"areas":"%s",' "$out/areas.txt"
 printf '"fileConsumers":"%s",' "$out/file-consumers.txt"
 printf '"cancelledFiles":"%s",' "$out/cancelled-files.txt"
 printf '"summary":"%s"' "$out/summary.txt"
