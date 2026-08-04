@@ -20,6 +20,7 @@ license information where applicable.
 | `ponytail-review` | Adapted | Review a diff exclusively for avoidable complexity. |
 | `ponytail-audit` | Adapted | Audit a whole repository for avoidable complexity. |
 | `ponytail-debt` | Adapted | Collect deliberate `ponytail:` deferrals into a debt ledger. |
+| `code-review` | Adapted | Review the committed branch change as a pull request; publishes to Azure DevOps in CI and prints the same title, description, and findings locally. |
 
 ## Install
 
@@ -89,6 +90,9 @@ runtime adapter and stores generated evidence outside the skill package:
 node scripts/evaluate-skills.ts --skill authoring-skills
 node scripts/evaluate-skills.ts --skill authoring-skills --previous /path/to/previous-snapshot
 node scripts/benchmark-skills.ts --participant /tmp/brainstorm-ideas --participant /tmp/other-brainstorm --evals /path/to/shared-evals.json
+# Repeat --eval to run selected manifest IDs only, in manifest order.
+node scripts/evaluate-skills.ts --skill authoring-skills --eval migration-discovery
+node scripts/benchmark-skills.ts --participant /tmp/brainstorm-ideas --participant /tmp/other-brainstorm --evals /path/to/shared-evals.json --eval migration-discovery --eval boundary-case
 ```
 
 `evaluate-skills.ts` and `benchmark-skills.ts` deliberately answer different
@@ -114,11 +118,82 @@ or regresses. Benchmarking requires two or more `--participant` values and an
 `.skill-benchmarks/`; every participant is a peer, and a failed rubric score
 does not decide the process exit code (runtime failures still do).
 
-Keep benchmark fixtures relative to the shared `evals.json`; they are copied
-into every isolated run. The runner needs an authenticated Codex CLI; use
-`--grader none` to capture runs without LLM assertion grading. Each run records
-task and grader token usage separately when the runtime provides it. `codex
-exec --json` is enabled automatically for this purpose. Assertions can declare
+Keep benchmark fixtures relative to the shared `evals.json`; declared `files`
+are copied into every isolated run. An eval may instead declare
+`workspace_zip` with a safe ZIP path: the runner checks archive entry paths,
+extracts it with `unzip` into an isolated `inputs/workspace`, and uses that
+workspace as the runtime CWD. This is generic; a code-review skill can infer
+Git refs from a Git workspace, while another skill may use an ordinary project
+archive. ZIP extraction therefore requires `unzip` on `PATH`.
+
+An eval may require a SARIF result without exposing its reference answer to
+the candidate:
+
+```json
+{
+  "workspace_zip": "fixtures/review.zip",
+  "sarif": {
+    "artifact": "review.sarif",
+    "ground_truth": "ground-truth/review.json",
+    "gates": {
+      "min_recall": 0.60,
+      "min_recall_by_level": { "error": 0.80 },
+      "max_false_positives": 5
+    }
+  }
+}
+```
+
+The runner injects the exact artifact path and SARIF 2.1.0 result contract into the candidate prompt; participant skills do not need artifact instructions. Candidates may still give a normal user-facing final response. The runner
+validates SARIF 2.1.0, safe repository-relative locations, and matches it
+against private ground truth by path, line, `ruleId`, and SARIF level. SARIF is
+a hard gate and is recorded in `grading.json` and the final report. Without
+`gates`, matching remains exact. Optional `gates` may set `min_recall` and
+per-level `min_recall_by_level` thresholds from 0 to 1, plus a non-negative
+integer `max_false_positives`; then unmatched expected findings are allowed
+only when all declared gates pass. Reports record recall, recall by level,
+false positives, and failed gates. Keep the ground truth outside `files` and
+never place it in a participant skill.
+
+The runner supports authenticated Codex and Kiro CLIs; use `--grader none` to
+capture runs without LLM assertion grading. Codex uses `codex exec --json`
+automatically and records task and grader token usage when terminal JSONL
+provides it. When terminal events carry unique IDs, the runner aggregates their
+usage and reports `token_usage_scope`; otherwise it records the final root
+event and labels it accordingly.
+
+Kiro runs invoke exactly `kiro-cli chat --no-interactive --wrap never` plus any
+configured `--agent` and `--effort`, for example:
+
+```bash
+node scripts/evaluate-skills.ts --skill authoring-skills --runtime kiro \
+  --kiro-bin kiro-cli --kiro-agent kiro_default --kiro-effort high \
+  --kiro-model claude-sonnet-5 --kiro-trust-tools fs_read,fs_write
+```
+
+Kiro defaults to `claude-sonnet-5` (verified against the available Kiro CLI model configuration) and always receives `--model`; override it with `--kiro-model <name>`. `--model` remains Codex-only.
+
+Prefer `--kiro-agent-file <path>` over `--kiro-agent <name>` for benchmarking: the
+runner then builds an isolated Kiro `HOME` per run containing only that agent, so no
+global `mcp.json`, steering document, or installed skill can reach a candidate.
+Authentication is preserved by linking the existing XDG data directory. This matters
+for correctness as well as neutrality: loading the global MCP set grew `kiro-cli` to
+about 29GB RSS locally until an OOM killer terminated runs mid-review.
+
+Kiro has no documented JSON/token telemetry: the runner preserves stdout/stderr
+logs and duration, and writes every token field as `null` with
+`token_usage_scope: "unavailable"`. Candidate output is captured from stdout.
+For grading, the runner writes `grader-output/grader-prompt.md`; Kiro must read
+it and write strict JSON to the exact `grader-output/grader-response.json` path.
+The runner parses that file rather than stdout, so tool narration in stdout is
+preserved as evidence without corrupting grading. A missing or invalid response
+file fails the criterion normally. Kiro requires an explicit headless
+trust policy: pass exactly one of `--kiro-trust-tools <names>` (including an
+explicit empty list when appropriate) or `--kiro-trust-all-tools`. It never
+defaults to trusting all tools; use the latter only when the evaluation is
+isolated and you intentionally accept that broader permission.
+
+Assertions can declare
 a `criterion`, a 0-10 `threshold`, and a `rubric` with anchored score
 descriptions; the harness calculates pass/fail from `score >= threshold` and
 retains the score and evidence in `grading.json`.
@@ -184,8 +259,9 @@ discovery, token usage, and executed candidate turns per variant.
 Runs are sequential by default for the most stable runtime conditions. Pass
 `--concurrency 2` or another bounded positive integer to execute independent
 case/repetition/variant runs in parallel; result ordering remains deterministic.
-Use a modest value (typically 2–3) to avoid runtime saturation or adding load
-variation to the comparison.
+Codex honors the requested concurrency. Kiro candidates are deliberately
+serialized even when `--concurrency` is higher: the CLI persists shared local
+session state and parallel candidates have terminated before artifact persistence.
 
 For a new skill, add at least two realistic cases and one boundary case. Before
 a material skill update, snapshot the existing skill outside the repository and

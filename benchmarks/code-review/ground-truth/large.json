@@ -1,0 +1,509 @@
+{
+  "scenario": "large multi-commit SaaS feature review fixture",
+  "base_ref": "main",
+  "head_ref": "feature/large",
+  "expected_count": 35,
+  "line_tolerance": 1,
+  "findings": [
+    {
+      "id": "large-01",
+      "rule_id": "authz-impersonation",
+      "level": "error",
+      "path": "apps/api/src/auth/impersonate.ts",
+      "line": 2,
+      "category": "auth/authz/tenant",
+      "title": "Impersonation accepts any authenticated caller",
+      "evidence": "export function impersonate(request: any) {",
+      "impact": "A reachable feature path can violate its stated security, correctness, compatibility, or operational guarantee.",
+      "commits": [
+        "c904a03"
+      ]
+    },
+    {
+      "id": "large-02",
+      "rule_id": "authz-project-membership",
+      "level": "error",
+      "path": "apps/api/src/auth/project-access.ts",
+      "line": 2,
+      "category": "auth/authz/tenant",
+      "title": "Project endpoint omits tenant membership check",
+      "evidence": "export function readProject(request: any, db: any) {",
+      "impact": "A reachable feature path can violate its stated security, correctness, compatibility, or operational guarantee.",
+      "commits": [
+        "c904a03"
+      ]
+    },
+    {
+      "id": "large-03",
+      "rule_id": "tenant-header-trust",
+      "level": "warning",
+      "path": "apps/api/src/auth/tenant-switch.ts",
+      "line": 2,
+      "category": "auth/authz/tenant",
+      "title": "Tenant context trusts caller-controlled header",
+      "evidence": "export function tenantFor(request: any) {",
+      "impact": "A reachable feature path can violate its stated security, correctness, compatibility, or operational guarantee.",
+      "commits": [
+        "c904a03"
+      ]
+    },
+    {
+      "id": "large-04",
+      "rule_id": "authz-invite-cross-tenant",
+      "level": "error",
+      "path": "apps/api/src/auth/invite-accept.ts",
+      "line": 2,
+      "category": "auth/authz/tenant",
+      "title": "Invite acceptance does not scope token to tenant",
+      "evidence": "export function acceptInvite(request: any, db: any) {",
+      "impact": "A reachable feature path can violate its stated security, correctness, compatibility, or operational guarantee.",
+      "commits": [
+        "c904a03"
+      ]
+    },
+    {
+      "id": "large-05",
+      "rule_id": "ssrf-unrestricted-url",
+      "level": "error",
+      "path": "apps/api/src/security/fetch-preview.ts",
+      "line": 2,
+      "category": "input/security",
+      "title": "Preview fetch permits internal URLs",
+      "evidence": "export async function preview(url: string, client: any) {",
+      "impact": "A reachable feature path can violate its stated security, correctness, compatibility, or operational guarantee.",
+      "commits": [
+        "3863c22"
+      ]
+    },
+    {
+      "id": "large-06",
+      "rule_id": "xss-innerhtml",
+      "level": "error",
+      "path": "apps/web/src/security/render-note.ts",
+      "line": 2,
+      "category": "input/security",
+      "title": "User note is assigned to innerHTML",
+      "evidence": "export function renderNote(element: HTMLElement, note: string) {",
+      "impact": "A reachable feature path can violate its stated security, correctness, compatibility, or operational guarantee.",
+      "commits": [
+        "3863c22"
+      ]
+    },
+    {
+      "id": "large-07",
+      "rule_id": "sql-injection-search",
+      "level": "error",
+      "path": "apps/api/src/security/search.ts",
+      "line": 2,
+      "category": "input/security",
+      "title": "Search query concatenates untrusted SQL",
+      "evidence": "export function search(db: any, q: string) {",
+      "impact": "A reachable feature path can violate its stated security, correctness, compatibility, or operational guarantee.",
+      "commits": [
+        "3863c22"
+      ]
+    },
+    {
+      "id": "large-08",
+      "rule_id": "path-traversal-export",
+      "level": "error",
+      "path": "apps/api/src/security/export-file.ts",
+      "line": 2,
+      "category": "input/security",
+      "title": "Export path uses unvalidated user filename",
+      "evidence": "import { readFile } from \"node:fs/promises\";",
+      "impact": "A reachable feature path can violate its stated security, correctness, compatibility, or operational guarantee.",
+      "commits": [
+        "3863c22"
+      ]
+    },
+    {
+      "id": "large-09",
+      "rule_id": "secret-logging",
+      "level": "warning",
+      "path": "apps/api/src/security/debug-log.ts",
+      "line": 2,
+      "category": "input/security",
+      "title": "Login diagnostics log authorization token",
+      "evidence": "export function logLogin(request: any, logger: any) {",
+      "impact": "A reachable feature path can violate its stated security, correctness, compatibility, or operational guarantee.",
+      "commits": [
+        "3863c22"
+      ]
+    },
+    {
+      "id": "large-10",
+      "rule_id": "command-injection-template",
+      "level": "error",
+      "path": "apps/api/src/security/template.ts",
+      "line": 2,
+      "category": "input/security",
+      "title": "Template renderer passes user input to shell",
+      "evidence": "import { exec } from \"node:child_process\";",
+      "impact": "A reachable feature path can violate its stated security, correctness, compatibility, or operational guarantee.",
+      "commits": [
+        "8760128"
+      ]
+    },
+    {
+      "id": "large-11",
+      "rule_id": "cache-tenant-leak",
+      "level": "error",
+      "path": "apps/api/src/data/cache-user.ts",
+      "line": 2,
+      "category": "data/cache/migration",
+      "title": "User cache key omits tenant identifier",
+      "evidence": "const cache = new Map<string, unknown>();",
+      "impact": "A reachable feature path can violate its stated security, correctness, compatibility, or operational guarantee.",
+      "commits": [
+        "8760128"
+      ]
+    },
+    {
+      "id": "large-12",
+      "rule_id": "lost-update-profile",
+      "level": "warning",
+      "path": "apps/api/src/data/update-profile.ts",
+      "line": 2,
+      "category": "data/cache/migration",
+      "title": "Profile update overwrites concurrent changes",
+      "evidence": "export async function updateProfile(db: any, id: string, body: any) {",
+      "impact": "A reachable feature path can violate its stated security, correctness, compatibility, or operational guarantee.",
+      "commits": [
+        "8760128"
+      ]
+    },
+    {
+      "id": "large-13",
+      "rule_id": "migration-not-null",
+      "level": "error",
+      "path": "db/migrations/20200803_add_invoice_state.sql",
+      "line": 2,
+      "category": "data/cache/migration",
+      "title": "Migration adds NOT NULL column without backfill",
+      "evidence": "ALTER TABLE invoices ADD COLUMN state text NOT NULL;",
+      "impact": "A reachable feature path can violate its stated security, correctness, compatibility, or operational guarantee.",
+      "commits": [
+        "8760128"
+      ]
+    },
+    {
+      "id": "large-14",
+      "rule_id": "cascade-missing-tenant",
+      "level": "error",
+      "path": "apps/api/src/data/delete-tenant.ts",
+      "line": 2,
+      "category": "data/cache/migration",
+      "title": "Tenant deletion leaves job records behind",
+      "evidence": "export async function deleteTenant(db: any, tenantId: string) {",
+      "impact": "A reachable feature path can violate its stated security, correctness, compatibility, or operational guarantee.",
+      "commits": [
+        "8760128"
+      ]
+    },
+    {
+      "id": "large-15",
+      "rule_id": "cache-invalidation-prefix",
+      "level": "warning",
+      "path": "workers/src/cache/invalidate.ts",
+      "line": 2,
+      "category": "data/cache/migration",
+      "title": "Invalidation deletes every tenant cache entry",
+      "evidence": "export function invalidate(cache: any, tenantId: string) {",
+      "impact": "A reachable feature path can violate its stated security, correctness, compatibility, or operational guarantee.",
+      "commits": [
+        "6313099"
+      ]
+    },
+    {
+      "id": "large-16",
+      "rule_id": "retry-unbounded",
+      "level": "error",
+      "path": "workers/src/jobs/email-retry.ts",
+      "line": 2,
+      "category": "async/retry/concurrency",
+      "title": "Email job retries indefinitely without cap",
+      "evidence": "export async function sendWithRetry(send: any): Promise<void> {",
+      "impact": "A reachable feature path can violate its stated security, correctness, compatibility, or operational guarantee.",
+      "commits": [
+        "6313099"
+      ]
+    },
+    {
+      "id": "large-17",
+      "rule_id": "webhook-fire-and-forget",
+      "level": "warning",
+      "path": "apps/api/src/async/webhook.ts",
+      "line": 2,
+      "category": "async/retry/concurrency",
+      "title": "Webhook delivery is not awaited or persisted",
+      "evidence": "export async function notify(client: any, event: any) {",
+      "impact": "A reachable feature path can violate its stated security, correctness, compatibility, or operational guarantee.",
+      "commits": [
+        "6313099"
+      ]
+    },
+    {
+      "id": "large-18",
+      "rule_id": "billing-race",
+      "level": "error",
+      "path": "workers/src/jobs/billing.ts",
+      "line": 2,
+      "category": "async/retry/concurrency",
+      "title": "Billing worker lacks idempotency check",
+      "evidence": "export async function bill(db: any, invoice: any) {",
+      "impact": "A reachable feature path can violate its stated security, correctness, compatibility, or operational guarantee.",
+      "commits": [
+        "6313099"
+      ]
+    },
+    {
+      "id": "large-19",
+      "rule_id": "refresh-race",
+      "level": "warning",
+      "path": "apps/api/src/async/refresh-token.ts",
+      "line": 2,
+      "category": "async/retry/concurrency",
+      "title": "Refresh token rotation can issue two valid replacements",
+      "evidence": "export async function rotate(store: any, token: string) {",
+      "impact": "A reachable feature path can violate its stated security, correctness, compatibility, or operational guarantee.",
+      "commits": [
+        "6313099"
+      ]
+    },
+    {
+      "id": "large-20",
+      "rule_id": "queue-ack-early",
+      "level": "error",
+      "path": "workers/src/jobs/queue-consumer.ts",
+      "line": 2,
+      "category": "async/retry/concurrency",
+      "title": "Queue message acknowledged before work completes",
+      "evidence": "export async function consume(message: any, ack: any, work: any) {",
+      "impact": "A reachable feature path can violate its stated security, correctness, compatibility, or operational guarantee.",
+      "commits": [
+        "3e62f65"
+      ]
+    },
+    {
+      "id": "large-21",
+      "rule_id": "api-version-breaking",
+      "level": "warning",
+      "path": "apps/api/src/api/version.ts",
+      "line": 2,
+      "category": "API/config compatibility",
+      "title": "Response changes id from string to number",
+      "evidence": "export function serializeAccount(account: any) {",
+      "impact": "A reachable feature path can violate its stated security, correctness, compatibility, or operational guarantee.",
+      "commits": [
+        "3e62f65"
+      ]
+    },
+    {
+      "id": "large-22",
+      "rule_id": "cors-reflection",
+      "level": "error",
+      "path": "apps/api/src/config/cors.ts",
+      "line": 2,
+      "category": "API/config compatibility",
+      "title": "CORS reflects arbitrary Origin header",
+      "evidence": "export function cors(request: any) {",
+      "impact": "A reachable feature path can violate its stated security, correctness, compatibility, or operational guarantee.",
+      "commits": [
+        "3e62f65"
+      ]
+    },
+    {
+      "id": "large-23",
+      "rule_id": "api-url-http",
+      "level": "warning",
+      "path": "apps/web/src/config/api-url.ts",
+      "line": 2,
+      "category": "API/config compatibility",
+      "title": "Production API URL downgrades to HTTP",
+      "evidence": "export const API_URL = \"http://api.orbit.example\";",
+      "impact": "A reachable feature path can violate its stated security, correctness, compatibility, or operational guarantee.",
+      "commits": [
+        "3e62f65"
+      ]
+    },
+    {
+      "id": "large-24",
+      "rule_id": "config-nan-timeout",
+      "level": "warning",
+      "path": "packages/shared/src/config/parse-timeout.ts",
+      "line": 2,
+      "category": "API/config compatibility",
+      "title": "Invalid timeout becomes NaN and bypasses fallback",
+      "evidence": "export function timeout(value: string) {",
+      "impact": "A reachable feature path can violate its stated security, correctness, compatibility, or operational guarantee.",
+      "commits": [
+        "3e62f65"
+      ]
+    },
+    {
+      "id": "large-25",
+      "rule_id": "pagination-unbounded",
+      "level": "warning",
+      "path": "apps/api/src/api/pagination.ts",
+      "line": 2,
+      "category": "API/config compatibility",
+      "title": "Pagination accepts unbounded limit",
+      "evidence": "export function page(request: any) {",
+      "impact": "A reachable feature path can violate its stated security, correctness, compatibility, or operational guarantee.",
+      "commits": [
+        "2e63f51"
+      ]
+    },
+    {
+      "id": "large-26",
+      "rule_id": "ci-unpinned-action",
+      "level": "error",
+      "path": ".github/workflows/release.yml",
+      "line": 2,
+      "category": "CI/deploy/supply chain",
+      "title": "Release workflow uses mutable action tag",
+      "evidence": "name: Release",
+      "impact": "A reachable feature path can violate its stated security, correctness, compatibility, or operational guarantee.",
+      "commits": [
+        "2e63f51"
+      ]
+    },
+    {
+      "id": "large-27",
+      "rule_id": "deploy-secret-echo",
+      "level": "error",
+      "path": "scripts/deploy.sh",
+      "line": 2,
+      "category": "CI/deploy/supply chain",
+      "title": "Deploy script prints secret environment variable",
+      "evidence": "#!/usr/bin/env bash",
+      "impact": "A reachable feature path can violate its stated security, correctness, compatibility, or operational guarantee.",
+      "commits": [
+        "2e63f51"
+      ]
+    },
+    {
+      "id": "large-28",
+      "rule_id": "docker-latest-base",
+      "level": "warning",
+      "path": "infra/docker/Dockerfile",
+      "line": 2,
+      "category": "CI/deploy/supply chain",
+      "title": "Image base is an unpinned latest tag",
+      "evidence": "FROM node:latest",
+      "impact": "A reachable feature path can violate its stated security, correctness, compatibility, or operational guarantee.",
+      "commits": [
+        "2e63f51"
+      ]
+    },
+    {
+      "id": "large-29",
+      "rule_id": "k8s-privileged",
+      "level": "error",
+      "path": "infra/k8s/api.yaml",
+      "line": 2,
+      "category": "CI/deploy/supply chain",
+      "title": "API container runs privileged",
+      "evidence": "apiVersion: v1",
+      "impact": "A reachable feature path can violate its stated security, correctness, compatibility, or operational guarantee.",
+      "commits": [
+        "2e63f51"
+      ]
+    },
+    {
+      "id": "large-30",
+      "rule_id": "supply-chain-curl-pipe",
+      "level": "error",
+      "path": "scripts/install-plugin.sh",
+      "line": 2,
+      "category": "CI/deploy/supply chain",
+      "title": "Plugin installer executes downloaded script directly",
+      "evidence": "#!/usr/bin/env bash",
+      "impact": "A reachable feature path can violate its stated security, correctness, compatibility, or operational guarantee.",
+      "commits": [
+        "af4ed19"
+      ]
+    },
+    {
+      "id": "large-31",
+      "rule_id": "test-auth-bypass",
+      "level": "warning",
+      "path": "tests/helpers/mock-auth.ts",
+      "line": 2,
+      "category": "tests/observability",
+      "title": "Test helper defaults every user to admin",
+      "evidence": "export function mockUser(overrides: any = {}) {",
+      "impact": "A reachable feature path can violate its stated security, correctness, compatibility, or operational guarantee.",
+      "commits": [
+        "af4ed19"
+      ]
+    },
+    {
+      "id": "large-32",
+      "rule_id": "audit-swallowed-error",
+      "level": "warning",
+      "path": "apps/api/src/observability/audit.ts",
+      "line": 2,
+      "category": "tests/observability",
+      "title": "Audit write failures are silently discarded",
+      "evidence": "export async function audit(store: any, event: any) {",
+      "impact": "A reachable feature path can violate its stated security, correctness, compatibility, or operational guarantee.",
+      "commits": [
+        "af4ed19"
+      ]
+    },
+    {
+      "id": "large-33",
+      "rule_id": "metrics-high-cardinality",
+      "level": "warning",
+      "path": "workers/src/observability/metrics.ts",
+      "line": 2,
+      "category": "tests/observability",
+      "title": "Metric label includes unbounded user id",
+      "evidence": "export function record(metrics: any, userId: string) {",
+      "impact": "A reachable feature path can violate its stated security, correctness, compatibility, or operational guarantee.",
+      "commits": [
+        "af4ed19"
+      ]
+    },
+    {
+      "id": "large-34",
+      "rule_id": "test-skips-webhook",
+      "level": "warning",
+      "path": "tests/integration/webhook.test.ts",
+      "line": 2,
+      "category": "tests/observability",
+      "title": "Webhook integration test is committed as skipped",
+      "evidence": "test.skip(\"delivers signed webhook\", async () => { throw new Error(\"not run\"); });",
+      "impact": "A reachable feature path can violate its stated security, correctness, compatibility, or operational guarantee.",
+      "commits": [
+        "af4ed19"
+      ]
+    },
+    {
+      "id": "large-35",
+      "rule_id": "error-details-client",
+      "level": "warning",
+      "path": "apps/web/src/observability/error-boundary.ts",
+      "line": 2,
+      "category": "tests/observability",
+      "title": "Client response exposes raw server error details",
+      "evidence": "export function displayError(error: any) {",
+      "impact": "A reachable feature path can violate its stated security, correctness, compatibility, or operational guarantee.",
+      "commits": [
+        "51080a6"
+      ]
+    }
+  ],
+  "forbidden": [
+    "Do not report generated safe feature files solely for style or missing abstractions.",
+    "Do not report baseline-only defects as feature findings."
+  ],
+  "preexisting_notes": [
+    {
+      "path": "apps/api/src/legacy.ts",
+      "note": "Contains intentionally pre-existing open redirect and weak role check; both are on main and excluded from expected findings."
+    }
+  ]
+}

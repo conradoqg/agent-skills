@@ -3,11 +3,12 @@
  * Evaluate one Agent Skill with isolated runtime runs.
  *
  * The test contract is the official Agent Skills evals/evals.json format.
- * The workflow is runtime-agnostic; Codex CLI is the first runtime adapter.
+ * The workflow is runtime-agnostic; Codex CLI and Kiro CLI are supported adapters.
  * Generated evidence always stays outside the skill package.
  */
 
-import { cp, mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
+import { cp, mkdir, readFile, readdir, rm, stat, symlink, writeFile } from "node:fs/promises";
+import { homedir } from "node:os";
 import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { performance } from "node:perf_hooks";
 import { spawn } from "node:child_process";
@@ -22,9 +23,20 @@ function usage() {
 Options:
   --previous <path>       Previous skill snapshot; adds the old_skill variant.
   --evals <path>          External evals.json suite for this skill evaluation.
+  --eval <id>             Run only this eval ID; repeat to select multiple IDs.
   --workspace <path>      Root for generated evidence (default: .skill-evals/<skill>).
-  --runtime <name>        Runtime adapter (default: codex).
+  --runtime <name>        Runtime adapter: codex or kiro (default: codex).
   --codex-bin <path>      Codex executable when --runtime codex (default: codex).
+  --kiro-bin <path>       Kiro executable when --runtime kiro (default: kiro-cli).
+  --kiro-agent <name>     Optional agent passed to Kiro.
+  --kiro-agent-file <path>
+                         Agent JSON used in an isolated Kiro HOME: no global skills,
+                         steering, or mcp.json are loaded for the run.
+  --kiro-effort <level>   Optional effort passed to Kiro.
+  --kiro-model <name>     Kiro model (default: claude-sonnet-5).
+  --kiro-trust-tools <names>
+                         Explicit Kiro trusted tool names (required for --runtime kiro).
+  --kiro-trust-all-tools  Explicitly trust all Kiro tools (required alternative for --runtime kiro).
   --model <name>          Optional model passed to Codex.
   --grader <runtime|none> Grade assertions with the selected runtime or only record runs (default: runtime).
   --timeout-ms <number>   Per runtime invocation timeout (default: ${DEFAULT_TIMEOUT_MS}).
@@ -37,11 +49,15 @@ Options:
 }
 
 function parseArgs(argv) {
-  const values = { runtime: "codex", grader: "runtime", codexBin: "codex", timeoutMs: DEFAULT_TIMEOUT_MS, concurrency: 1 };
+  const values = { runtime: "codex", grader: "runtime", codexBin: "codex", kiroBin: "kiro-cli", kiroModel: "claude-sonnet-5", timeoutMs: DEFAULT_TIMEOUT_MS, concurrency: 1, evalIds: [] };
   for (let index = 0; index < argv.length; index += 1) {
     const key = argv[index];
     if (key === "--help") return { help: true };
     if (!key.startsWith("--")) throw new Error(`Unexpected argument: ${key}`);
+    if (key === "--kiro-trust-all-tools") {
+      values.kiroTrustAllTools = true;
+      continue;
+    }
     const value = argv[index + 1];
     if (value === undefined || value.startsWith("--")) throw new Error(`Missing value for ${key}`);
     index += 1;
@@ -49,8 +65,15 @@ function parseArgs(argv) {
     else if (key === "--runtime") values.runtime = value;
     else if (key === "--previous") values.previous = value;
     else if (key === "--evals") values.evals = value;
+    else if (key === "--eval") values.evalIds.push(value);
     else if (key === "--workspace") values.workspace = value;
     else if (key === "--codex-bin") values.codexBin = value;
+    else if (key === "--kiro-bin") values.kiroBin = value;
+    else if (key === "--kiro-agent") values.kiroAgent = value;
+    else if (key === "--kiro-agent-file") values.kiroAgentFile = value;
+    else if (key === "--kiro-effort") values.kiroEffort = value;
+    else if (key === "--kiro-model") values.kiroModel = value;
+    else if (key === "--kiro-trust-tools") values.kiroTrustTools = value;
     else if (key === "--model") values.model = value;
     else if (key === "--grader") values.grader = value;
     else if (key === "--timeout-ms") values.timeoutMs = Number(value);
@@ -75,6 +98,10 @@ function parseArgs(argv) {
     throw new Error("--concurrency must be a positive integer");
   }
   if (!['runtime', 'none'].includes(values.grader)) throw new Error("--grader must be runtime or none");
+  if (values.runtime === "kiro") {
+    if (values.kiroTrustAllTools && values.kiroTrustTools !== undefined) throw new Error("Use exactly one of --kiro-trust-tools or --kiro-trust-all-tools");
+    if (!values.kiroTrustAllTools && values.kiroTrustTools === undefined) throw new Error("--runtime kiro requires --kiro-trust-tools or --kiro-trust-all-tools");
+  }
   return values;
 }
 
@@ -118,6 +145,11 @@ async function loadManifest(skillPath, manifestOverride = null) {
     if (test.files !== undefined && (!Array.isArray(test.files) || !test.files.every((item) => typeof item === "string"))) {
       throw new Error(`${manifestPath}: eval ${test.id} files must be an array of strings`);
     }
+    if (test.workspace_zip !== undefined && !safeRelativePath(test.workspace_zip)) throw new Error(`${manifestPath}: eval ${test.id} workspace_zip must be a safe relative path`);
+    if (test.sarif !== undefined) {
+      test.sarif = normalizeSarif(test.sarif, manifestPath, test.id);
+      if ((test.files ?? []).includes(test.sarif.groundTruth)) throw new Error(`${manifestPath}: eval ${test.id} SARIF ground_truth must stay out of runtime inputs`);
+    }
     if (test.assertions !== undefined && !Array.isArray(test.assertions)) throw new Error(`${manifestPath}: eval ${test.id} assertions must be an array`);
     test.assertions = (test.assertions ?? []).map((assertion, assertionIndex) => normalizeAssertion(assertion, manifestPath, test.id, assertionIndex));
     if (test.repetitions !== undefined && (!Number.isSafeInteger(test.repetitions) || test.repetitions <= 0)) {
@@ -126,6 +158,48 @@ async function loadManifest(skillPath, manifestOverride = null) {
     if (test.conversation !== undefined) test.conversation = normalizeConversation(test.conversation, manifestPath, test.id);
   }
   return manifest;
+}
+
+function selectEvals(manifest, requestedIds = []) {
+  if (requestedIds.length === 0) return manifest;
+  const availableIds = new Set(manifest.evals.map((test) => String(test.id)));
+  const missingIds = [...new Set(requestedIds.filter((id) => !availableIds.has(id)))];
+  if (missingIds.length > 0) throw new Error(`Requested --eval ID(s) not found: ${missingIds.join(", ")}`);
+  const selected = new Set(requestedIds);
+  const evals = manifest.evals.filter((test) => selected.has(String(test.id)));
+  if (evals.length === 0) throw new Error("--eval selected no evals");
+  return { ...manifest, evals };
+}
+
+function safeRelativePath(value) {
+  return typeof value === "string" && value.length > 0 && !isAbsolute(value) && !/^[A-Za-z]:[\\/]/.test(value) &&
+    !value.replace(/\\/g, "/").split("/").some((part) => part === ".." || part === "");
+}
+
+function normalizeSarif(sarif, manifestPath, evalId) {
+  if (!sarif || typeof sarif !== "object" || Array.isArray(sarif) || !safeRelativePath(sarif.artifact) || !safeRelativePath(sarif.ground_truth)) {
+    throw new Error(`${manifestPath}: eval ${evalId} sarif needs relative artifact and ground_truth paths`);
+  }
+  return { artifact: sarif.artifact, groundTruth: sarif.ground_truth, gates: normalizeSarifGates(sarif.gates, manifestPath, evalId) };
+}
+
+function normalizeSarifGates(gates, manifestPath, evalId) {
+  if (gates === undefined) return null;
+  if (!gates || typeof gates !== "object" || Array.isArray(gates)) throw new Error(`${manifestPath}: eval ${evalId} sarif.gates must be an object`);
+  const validThreshold = (value) => typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1;
+  if (gates.min_recall !== undefined && !validThreshold(gates.min_recall)) throw new Error(`${manifestPath}: eval ${evalId} sarif.gates.min_recall must be from 0 to 1`);
+  const byLevel = gates.min_recall_by_level ?? {};
+  if (!byLevel || typeof byLevel !== "object" || Array.isArray(byLevel) || Object.entries(byLevel).some(([level, threshold]) => !["error", "warning", "note", "none"].includes(level) || !validThreshold(threshold))) {
+    throw new Error(`${manifestPath}: eval ${evalId} sarif.gates.min_recall_by_level must contain error, warning, note, or none thresholds from 0 to 1`);
+  }
+  if (gates.max_false_positives !== undefined && (!Number.isSafeInteger(gates.max_false_positives) || gates.max_false_positives < 0)) {
+    throw new Error(`${manifestPath}: eval ${evalId} sarif.gates.max_false_positives must be a non-negative integer`);
+  }
+  return {
+    ...(gates.min_recall === undefined ? {} : { min_recall: gates.min_recall }),
+    ...(Object.keys(byLevel).length === 0 ? {} : { min_recall_by_level: { ...byLevel } }),
+    ...(gates.max_false_positives === undefined ? {} : { max_false_positives: gates.max_false_positives })
+  };
 }
 
 function normalizeConversation(conversation, manifestPath, evalId) {
@@ -226,7 +300,7 @@ async function copyRuntimeSkill(sourceSkill, variantDir) {
 
 function spawnProcess(command, args, options) {
   return new Promise((resolvePromise) => {
-    const child = spawn(command, args, { cwd: options.cwd, env: process.env, stdio: ["ignore", "pipe", "pipe"] });
+    const child = spawn(command, args, { cwd: options.cwd, env: { ...process.env, ...(options.env ?? {}) }, stdio: ["ignore", "pipe", "pipe"] });
     let stdout = "";
     let stderr = "";
     let timedOut = false;
@@ -238,11 +312,11 @@ function spawnProcess(command, args, options) {
     child.stderr.on("data", (chunk) => { stderr += chunk; });
     child.on("error", (error) => {
       clearTimeout(timer);
-      resolvePromise({ code: null, stdout, stderr: `${stderr}${error.message}`, timedOut });
+      resolvePromise({ code: null, signal: null, stdout, stderr: `${stderr}${error.message}`, timedOut });
     });
-    child.on("close", (code) => {
+    child.on("close", (code, signal) => {
       clearTimeout(timer);
-      resolvePromise({ code, stdout, stderr, timedOut });
+      resolvePromise({ code, signal: signal ?? null, stdout, stderr, timedOut });
     });
   });
 }
@@ -252,29 +326,145 @@ function asTokenCount(value) {
 }
 
 function usageFromJsonl(stdout) {
-  let usage = null;
+  const terminalEvents = [];
   for (const line of stdout.split("\n")) {
     try {
       const event = JSON.parse(line);
-      if (event.type === "turn.completed" && event.usage && typeof event.usage === "object") usage = event.usage;
+      if (event.type === "turn.completed" && event.usage && typeof event.usage === "object") terminalEvents.push(event);
     } catch {
       // Codex can emit non-JSON status text alongside its JSONL stream.
     }
   }
-  const inputTokens = asTokenCount(usage?.input_tokens);
-  const outputTokens = asTokenCount(usage?.output_tokens);
+  const eventId = (event) => event.id ?? event.turn_id ?? event.turn?.id ?? event.response_id ?? event.response?.id ?? null;
+  const identified = terminalEvents.filter((event) => typeof eventId(event) === "string" || Number.isSafeInteger(eventId(event)));
+  const selected = identified.length === terminalEvents.length && identified.length > 0
+    ? [...new Map(identified.map((event) => [String(eventId(event)), event])).values()]
+    : terminalEvents.length > 0 ? [terminalEvents.at(-1)] : [];
+  const usage = (field) => {
+    const values = selected.map((event) => asTokenCount(event.usage[field]));
+    return values.length === 0 || values.some((value) => value === null) ? null : values.reduce((sum, value) => sum + value, 0);
+  };
+  const inputTokens = usage("input_tokens");
+  const outputTokens = usage("output_tokens");
   return {
     input_tokens: inputTokens,
-    cached_input_tokens: asTokenCount(usage?.cached_input_tokens),
-    cache_write_input_tokens: asTokenCount(usage?.cache_write_input_tokens),
+    cached_input_tokens: usage("cached_input_tokens"),
+    cache_write_input_tokens: usage("cache_write_input_tokens"),
     output_tokens: outputTokens,
-    reasoning_output_tokens: asTokenCount(usage?.reasoning_output_tokens),
-    // output_tokens already includes reasoning tokens when the runtime reports both.
-    total_tokens: inputTokens === null || outputTokens === null ? null : inputTokens + outputTokens
+    reasoning_output_tokens: usage("reasoning_output_tokens"),
+    total_tokens: inputTokens === null || outputTokens === null ? null : inputTokens + outputTokens,
+    token_usage_scope: selected.length === 0 ? "unavailable" : identified.length === terminalEvents.length ? "unique_terminal_events" : "last_terminal_event"
   };
 }
 
-async function runCodex({ config, cwd, skillPath, inputs, outputDir, prompt, label, outputSchema = null }) {
+async function unzipWorkspace(inputRoot, workspaceZip, target, evalId) {
+  const archive = resolve(inputRoot, workspaceZip);
+  if (!safeRelativePath(workspaceZip) || !relative(inputRoot, archive) || relative(inputRoot, archive).startsWith("..") || !(await fileExists(archive))) {
+    throw new Error(`Eval ${evalId}: workspace_zip does not exist inside the eval suite: ${workspaceZip}`);
+  }
+  const listing = await spawnProcess("unzip", ["-Z1", archive], { cwd: inputRoot, timeoutMs: DEFAULT_TIMEOUT_MS });
+  if (listing.code !== 0) throw new Error(`Eval ${evalId}: cannot list workspace_zip: ${workspaceZip}`);
+  for (const entry of listing.stdout.split(/\r?\n/).filter(Boolean)) {
+    if (!safeRelativePath(entry.replace(/\/$/, ""))) throw new Error(`Eval ${evalId}: unsafe workspace_zip entry: ${entry}`);
+  }
+  await mkdir(target, { recursive: true });
+  const extracted = await spawnProcess("unzip", ["-qq", archive, "-d", target], { cwd: inputRoot, timeoutMs: DEFAULT_TIMEOUT_MS });
+  if (extracted.code !== 0) throw new Error(`Eval ${evalId}: cannot extract workspace_zip: ${workspaceZip}`);
+}
+
+function sarifDiagnostic(finding) {
+  return { path: finding.path, line: finding.line, rule_id: finding.rule_id, level: finding.level };
+}
+
+async function validateSarif({ test, outputDir, inputRoot }) {
+  if (!test.sarif) return null;
+  const artifact = resolve(outputDir, test.sarif.artifact);
+  if (!safeRelativePath(test.sarif.artifact) || !relative(outputDir, artifact) || relative(outputDir, artifact).startsWith("..") || !(await fileExists(artifact))) {
+    return { passed: false, evidence: `Required SARIF artifact is missing: outputs/${test.sarif.artifact}` };
+  }
+  let document;
+  try { document = JSON.parse(await readFile(artifact, "utf8")); } catch (error) { return { passed: false, evidence: `Required SARIF artifact is invalid JSON: ${error.message}` }; }
+  if (document?.version !== "2.1.0" || !Array.isArray(document.runs)) return { passed: false, evidence: "Required SARIF artifact must declare version 2.1.0 and runs[]." };
+  const findings = [];
+  for (const run of document.runs) {
+    if (!Array.isArray(run?.results)) return { passed: false, evidence: "Every SARIF run must contain results[]." };
+    for (const result of run.results) {
+      const location = result?.locations?.[0]?.physicalLocation;
+      const path = location?.artifactLocation?.uri?.replace(/\\/g, "/");
+      const line = location?.region?.startLine;
+      if (typeof result?.ruleId !== "string" || result.ruleId.trim().length === 0 || typeof result?.message?.text !== "string" || result.message.text.trim().length === 0 || !["none", "note", "warning", "error"].includes(result.level) || !safeRelativePath(path) || !Number.isSafeInteger(line) || line < 1) {
+        return { passed: false, evidence: "Each SARIF result needs safe relative location, positive line, non-empty ruleId and message, and accepted level." };
+      }
+      findings.push({ path, line, rule_id: result.ruleId, level: result.level });
+    }
+  }
+  const truthPath = resolve(inputRoot, test.sarif.groundTruth);
+  if (!safeRelativePath(test.sarif.groundTruth) || !relative(inputRoot, truthPath) || relative(inputRoot, truthPath).startsWith("..") || !(await fileExists(truthPath))) return { passed: false, evidence: `Private SARIF ground truth is missing: ${test.sarif.groundTruth}` };
+  let truth;
+  try { truth = JSON.parse(await readFile(truthPath, "utf8")); } catch (error) { return { passed: false, evidence: `Private SARIF ground truth is invalid JSON: ${error.message}` }; }
+  if (!Array.isArray(truth?.findings)) return { passed: false, evidence: "Private SARIF ground truth needs findings[]." };
+  const lineTolerance = truth.line_tolerance ?? 1;
+  if (!Number.isSafeInteger(lineTolerance) || lineTolerance < 0) return { passed: false, evidence: "Private SARIF ground truth line_tolerance must be a non-negative integer." };
+  const expected = truth.findings.map((finding) => ({ path: finding.path?.replace(/\\/g, "/"), line: finding.line, rule_id: finding.rule_id, level: finding.level }));
+  if (!expected.every((finding) => safeRelativePath(finding.path) && Number.isSafeInteger(finding.line) && finding.line > 0 && typeof finding.rule_id === "string" && typeof finding.level === "string")) return { passed: false, evidence: "Private SARIF ground truth has invalid finding fields." };
+  const actualRemaining = new Set(findings.map((_, index) => index));
+  const matchedExpected = new Set();
+  const matches = [];
+  const expectedIndexed = expected.map((finding, index) => ({ finding, index }));
+  for (const { finding: expectedFinding, index: expectedIndex } of expectedIndexed.sort((left, right) => left.finding.path.localeCompare(right.finding.path) || left.finding.level.localeCompare(right.finding.level) || left.finding.line - right.finding.line || left.finding.rule_id.localeCompare(right.finding.rule_id) || left.index - right.index)) {
+    const actualIndex = [...actualRemaining]
+      .filter((index) => findings[index].path === expectedFinding.path && findings[index].level === expectedFinding.level && Math.abs(findings[index].line - expectedFinding.line) <= lineTolerance)
+      .sort((left, right) => findings[left].line - findings[right].line || findings[left].rule_id.localeCompare(findings[right].rule_id) || left - right)[0];
+    if (actualIndex !== undefined) {
+      actualRemaining.delete(actualIndex);
+      matchedExpected.add(expectedIndex);
+      matches.push({ expected: sarifDiagnostic(expectedFinding), actual: sarifDiagnostic(findings[actualIndex]) });
+    }
+  }
+  const unmatchedExpected = expected.filter((_, index) => !matchedExpected.has(index));
+  const unmatchedActual = [...actualRemaining].map((index) => findings[index]);
+  const levels = ["error", "warning", "note", "none"];
+  const recallFor = (level = null) => {
+    const levelExpected = level === null ? expected : expected.filter((finding) => finding.level === level);
+    const levelMatched = level === null ? matches : matches.filter((match) => match.expected.level === level);
+    return levelExpected.length === 0 ? 1 : levelMatched.length / levelExpected.length;
+  };
+  const metrics = {
+    recall: recallFor(),
+    recall_by_level: Object.fromEntries(levels.map((level) => [level, recallFor(level)])),
+    false_positives: unmatchedActual.length
+  };
+  const gates = test.sarif.gates;
+  const gateFailures = gates ? [
+    ...(gates.min_recall !== undefined && metrics.recall < gates.min_recall ? [`min_recall ${metrics.recall.toFixed(3)} is below ${gates.min_recall}`] : []),
+    ...Object.entries(gates.min_recall_by_level ?? {}).filter(([level, threshold]) => metrics.recall_by_level[level] < threshold).map(([level, threshold]) => `min_recall_by_level.${level} ${metrics.recall_by_level[level].toFixed(3)} is below ${threshold}`),
+    ...(gates.max_false_positives !== undefined && metrics.false_positives > gates.max_false_positives ? [`max_false_positives ${metrics.false_positives} exceeds ${gates.max_false_positives}`] : [])
+  ] : [];
+  const passed = gates ? gateFailures.length === 0 : unmatchedExpected.length === 0 && unmatchedActual.length === 0;
+  const evidence = gates
+    ? (passed ? `SARIF gates passed: recall ${metrics.recall.toFixed(3)}, false positives ${metrics.false_positives}.` : `SARIF gate failure: ${gateFailures.join("; ")}.`)
+    : (passed
+      ? `SARIF matched ${matches.length} ground-truth finding(s) by path and level within ${lineTolerance} line(s); rule IDs are diagnostic only.`
+      : `SARIF ground-truth mismatch: ${unmatchedExpected.length} expected and ${unmatchedActual.length} actual finding(s) unmatched (path/level must match; line tolerance ${lineTolerance}).`);
+  return {
+    passed,
+    artifact: relative(outputDir, artifact),
+    line_tolerance: lineTolerance,
+    expected_count: expected.length,
+    actual_count: findings.length,
+    matched_count: matches.length,
+    unmatched_expected_count: unmatchedExpected.length,
+    unmatched_actual_count: unmatchedActual.length,
+    metrics,
+    ...(gates ? { gates, gate_failures: gateFailures } : {}),
+    matches,
+    unmatched_expected: unmatchedExpected.map(sarifDiagnostic),
+    unmatched_actual: unmatchedActual.map(sarifDiagnostic),
+    evidence
+  };
+}
+
+async function runCodex({ config, cwd, skillPath, inputs, outputDir, prompt, label, outputSchema = null, env }) {
   await mkdir(outputDir, { recursive: true });
   const lastMessage = join(outputDir, "last-message.md");
   const args = ["exec", "--json", "--ephemeral", "--ignore-user-config", "--skip-git-repo-check", "--sandbox", "workspace-write", "--color", "never", "-C", cwd];
@@ -289,7 +479,7 @@ async function runCodex({ config, cwd, skillPath, inputs, outputDir, prompt, lab
   args.push("--output-last-message", lastMessage, prompt);
   const startedAt = new Date().toISOString();
   const started = performance.now();
-  const processResult = await spawnProcess(config.codexBin, args, { cwd, timeoutMs: config.timeoutMs });
+  const processResult = await spawnProcess(config.codexBin, args, { cwd, timeoutMs: config.timeoutMs, env });
   const durationMs = Math.round(performance.now() - started);
   await writeFile(join(outputDir, "stdout.log"), processResult.stdout);
   await writeFile(join(outputDir, "stderr.log"), processResult.stderr);
@@ -297,6 +487,80 @@ async function runCodex({ config, cwd, skillPath, inputs, outputDir, prompt, lab
   const timing = { started_at: startedAt, duration_ms: durationMs, ...usageFromJsonl(processResult.stdout) };
   await writeFile(join(outputDir, "timing.json"), JSON.stringify(timing, null, 2));
   return { label, output, timing, code: processResult.code, timedOut: processResult.timedOut, stderr: processResult.stderr };
+}
+
+function unavailableTokenUsage() {
+  return {
+    input_tokens: null,
+    cached_input_tokens: null,
+    cache_write_input_tokens: null,
+    output_tokens: null,
+    reasoning_output_tokens: null,
+    total_tokens: null,
+    token_usage_scope: "unavailable"
+  };
+}
+
+async function prepareKiroHome(config, baseDir) {
+  // A clean benchmark harness: the isolated HOME exposes only the supplied agent.
+  // Global skills, steering documents, and mcp.json stay out of every candidate run.
+  const agentFile = resolve(ROOT, config.kiroAgentFile);
+  if (!(await fileExists(agentFile))) throw new Error(`Cannot find --kiro-agent-file: ${agentFile}`);
+  let agent;
+  try { agent = JSON.parse(await readFile(agentFile, "utf8")); } catch (error) { throw new Error(`--kiro-agent-file is not valid JSON: ${error.message}`); }
+  if (typeof agent?.name !== "string" || agent.name.trim().length === 0) throw new Error(`--kiro-agent-file needs a non-empty name: ${agentFile}`);
+  const home = join(baseDir, "kiro-home");
+  await mkdir(join(home, ".kiro", "agents"), { recursive: true });
+  await mkdir(join(home, ".kiro", "settings"), { recursive: true });
+  await writeFile(join(home, ".kiro", "agents", `${agent.name}.json`), JSON.stringify(agent, null, 2));
+  // Authentication state lives in the XDG data directory, so link it instead of copying secrets.
+  const share = join(homedir(), ".local", "share", "kiro-cli");
+  if (await fileExists(share)) {
+    await mkdir(join(home, ".local", "share"), { recursive: true });
+    await symlink(share, join(home, ".local", "share", "kiro-cli")).catch(() => {});
+  }
+  return { home, agentName: agent.name };
+}
+
+async function runKiro({ config, cwd, skillPath, inputs, outputDir, prompt, label, env }) {
+  await mkdir(outputDir, { recursive: true });
+  const isolated = config.kiroAgentFile ? await prepareKiroHome(config, dirname(outputDir)) : null;
+  const agentName = isolated?.agentName ?? config.kiroAgent;
+  const args = ["chat", "--no-interactive", "--wrap", "never", "--model", config.kiroModel];
+  if (agentName) args.push("--agent", agentName);
+  if (config.kiroEffort) args.push("--effort", config.kiroEffort);
+  if (config.kiroTrustAllTools) args.push("--trust-all-tools");
+  else args.push(`--trust-tools=${config.kiroTrustTools}`);
+  args.push(prompt);
+  const startedAt = new Date().toISOString();
+  const started = performance.now();
+  const runEnv = isolated ? { ...(env ?? {}), HOME: isolated.home } : env;
+  const processResult = await spawnProcess(config.kiroBin, args, { cwd, timeoutMs: config.timeoutMs, env: runEnv });
+  const timing = {
+    started_at: startedAt,
+    duration_ms: Math.round(performance.now() - started),
+    process_code: processResult.code,
+    process_signal: processResult.signal ?? null,
+    timed_out: processResult.timedOut,
+    ...unavailableTokenUsage()
+  };
+  await writeFile(join(outputDir, "stdout.log"), processResult.stdout);
+  await writeFile(join(outputDir, "stderr.log"), processResult.stderr);
+  await writeFile(join(outputDir, "timing.json"), JSON.stringify(timing, null, 2));
+  return { label, output: processResult.stdout, timing, code: processResult.code, timedOut: processResult.timedOut, stderr: processResult.stderr };
+}
+
+function graderPrompt(test, run) {
+  return [
+    "Grade an Agent Skills evaluation on an integer 0-10 scale. Judge only the listed criteria.",
+    "Use each criterion's rubric anchors to decide the score. Return one result per criterion. The harness, not you, decides pass/fail from score >= threshold.",
+    "Each evidence field must cite concrete output evidence or state why it is absent.",
+    `Expected output: ${test.expected_output}`,
+    `Assertions: ${JSON.stringify(test.assertions ?? [])}`,
+    run.conversation ? `Conversation transcript (the simulator's hidden facts are intentionally omitted): ${JSON.stringify(run.conversation.transcript)}` : null,
+    "Candidate output follows:",
+    run.output
+  ].filter(Boolean).join("\n\n");
 }
 
 async function gradeWithCodex({ config, variantDir, test, run }) {
@@ -331,19 +595,10 @@ async function gradeWithCodex({ config, variantDir, test, run }) {
     }
   }, null, 2));
   const gradeFile = join(variantDir, "grader-response.json");
-  const graderPrompt = [
-    "Grade an Agent Skills evaluation on an integer 0-10 scale. Judge only the listed criteria.",
-    "Use each criterion's rubric anchors to decide the score. Return one result per criterion. The harness, not you, decides pass/fail from score >= threshold.",
-    "Each evidence field must cite concrete output evidence or state why it is absent.",
-    `Expected output: ${test.expected_output}`,
-    `Assertions: ${JSON.stringify(assertions)}`,
-    run.conversation ? `Conversation transcript (the simulator's hidden facts are intentionally omitted): ${JSON.stringify(run.conversation.transcript)}` : null,
-    "Candidate output follows:",
-    run.output
-  ].filter(Boolean).join("\n\n");
+  const prompt = graderPrompt(test, run);
   const args = ["exec", "--json", "--ephemeral", "--ignore-user-config", "--skip-git-repo-check", "--sandbox", "read-only", "--color", "never", "-C", variantDir];
   if (config.model) args.push("--model", config.model);
-  args.push("--output-schema", schemaPath, "--output-last-message", gradeFile, graderPrompt);
+  args.push("--output-schema", schemaPath, "--output-last-message", gradeFile, prompt);
   const startedAt = new Date().toISOString();
   const started = performance.now();
   const result = await spawnProcess(config.codexBin, args, { cwd: variantDir, timeoutMs: config.timeoutMs });
@@ -359,6 +614,46 @@ async function gradeWithCodex({ config, variantDir, test, run }) {
     return { results: scoreGrades(assertions, graded.results), timing };
   } catch (error) {
     return { results: failedGrades(assertions, `Could not parse grader response: ${error.message}`), timing };
+  }
+}
+
+async function gradeWithKiro({ config, variantDir, test, run }) {
+  const assertions = test.assertions ?? [];
+  if (run.code !== 0 || run.timedOut) {
+    return { results: failedGrades(assertions, run.timedOut ? "Kiro execution timed out." : `Kiro exited with ${run.code}.`), timing: null };
+  }
+  if (assertions.length === 0) return { results: [], timing: null };
+  if (config.grader === "none") {
+    return { results: assertions.map((assertion) => ({ criterion: assertion.criterion, threshold: assertion.threshold, score: null, passed: null, evidence: "Not graded: --grader none." })), timing: null };
+  }
+  const graderOutput = join(variantDir, "grader-output");
+  await mkdir(graderOutput, { recursive: true });
+  const graderContext = join(graderOutput, "grader-prompt.md");
+  await writeFile(graderContext, graderPrompt(test, run));
+  const grade = await runKiro({
+    config,
+    cwd: variantDir,
+    skillPath: null,
+    inputs: [],
+    outputDir: graderOutput,
+    prompt: [
+      "Read the complete grading context from the absolute file path below.",
+      "Write only a JSON object with a results array matching the grading schema in that context to the exact absolute response path below; do not use Markdown fences or add commentary.",
+      `Grading context: ${graderContext}`,
+      `Response path: ${join(graderOutput, "grader-response.json")}`
+    ].join("\n"),
+    label: "grader"
+  });
+  await writeFile(join(variantDir, "grader-stdout.log"), grade.output);
+  await writeFile(join(variantDir, "grader-stderr.log"), grade.stderr);
+  const gradeFile = join(graderOutput, "grader-response.json");
+  if (!(await fileExists(gradeFile))) return { results: failedGrades(assertions, "Grader did not write grader-response.json; see grader logs."), timing: grade.timing };
+  try {
+    const graded = JSON.parse(await readFile(gradeFile, "utf8"));
+    if (!Array.isArray(graded.results) || graded.results.length !== assertions.length) throw new Error("wrong result count");
+    return { results: scoreGrades(assertions, graded.results), timing: grade.timing };
+  } catch (error) {
+    return { results: failedGrades(assertions, `Could not parse grader response: ${error.message}`), timing: grade.timing };
   }
 }
 
@@ -379,12 +674,35 @@ function scoreGrades(assertions, results) {
 }
 
 function createRuntime(config) {
-  if (config.runtime !== "codex") throw new Error(`Unsupported runtime: ${config.runtime}. Available runtime: codex.`);
-  return {
-    name: "codex",
-    run: (options) => runCodex({ config, ...options }),
-    grade: (options) => gradeWithCodex({ config, ...options })
-  };
+  if (config.runtime === "codex") {
+    return {
+      name: "codex",
+      run: (options) => runCodex({ config, ...options }),
+      grade: (options) => gradeWithCodex({ config, ...options })
+    };
+  }
+  if (config.runtime === "kiro") {
+    return {
+      name: "kiro",
+      run: (options) => runKiro({ config, ...options }),
+      grade: (options) => gradeWithKiro({ config, ...options })
+    };
+  }
+  throw new Error(`Unsupported runtime: ${config.runtime}. Available runtimes: codex, kiro.`);
+}
+
+function runtimeConcurrency(config) {
+  // Kiro CLI persists shared session state and has proven unstable with parallel candidates.
+  return config.runtime === "kiro" ? 1 : config.concurrency;
+}
+
+export function warnKiroMcpExposure(config, write = (line) => process.stdout.write(line)) {
+  // A global mcp.json is loaded unless the selected agent opts out. Observed locally:
+  // the handshake grows kiro-cli to ~29GB RSS and an OOM killer SIGTERMs the run
+  // mid-review, before required artifacts are written.
+  if (config.runtime !== "kiro" || config.kiroAgent) return false;
+  write("Warning: --runtime kiro without --kiro-agent loads every global MCP server; use an agent with mcpServers {} and includeMcpJson false to avoid out-of-memory termination.\n");
+  return true;
 }
 
 function candidatePassed(run, grading) {
@@ -439,7 +757,8 @@ function mergeTimings(timings) {
   return {
     started_at: timings[0]?.started_at ?? null,
     duration_ms: timings.reduce((sum, timing) => sum + (timing?.duration_ms ?? 0), 0),
-    ...tokenUsage
+    ...tokenUsage,
+    ...(timings.length > 0 && timings.every((timing) => timing?.token_usage_scope === "unavailable") ? { token_usage_scope: "unavailable" } : {})
   };
 }
 
@@ -447,7 +766,7 @@ function transcriptText(transcript) {
   return transcript.map((message) => `${message.speaker.toUpperCase()}: ${message.content}`).join("\n\n");
 }
 
-async function runConversation({ runtime, variantDir, simulatorDir, inputs, test, sourceSkill, label }) {
+async function runConversation({ runtime, variantDir, runtimeCwd = variantDir, simulatorDir, inputs, test, sourceSkill, label }) {
   const { persona, maxTurns } = test.conversation;
   const transcript = [{ speaker: "user", content: test.prompt }];
   const revealedFactIds = [];
@@ -474,7 +793,7 @@ async function runConversation({ runtime, variantDir, simulatorDir, inputs, test
     const finalTurn = turn === maxTurns || discoveryComplete || discoveryStalled;
     const candidatePrompt = [
       "You are executing an isolated, multi-turn Agent Skill evaluation.",
-      sourceSkill ? `Read and follow the Agent Skill at ${sourceSkill} before responding.` : "Complete the task without reading or using any Agent Skill.",
+      sourceSkill ? `Read and follow the Agent Skill at ${join(sourceSkill, "SKILL.md")} before responding.` : "Complete the task without reading or using any Agent Skill.",
       "You are facilitating a brainstorm with a participant. Ask one focused question when more context would materially improve the result; otherwise produce the final response.",
       `Final turn: ${finalTurn}. Required discovery facts complete: ${discoveryComplete}. Discovery stalled: ${discoveryStalled}. ${finalTurn ? "You must return action=final and synthesize from the evidence already gathered." : "Return action=question or action=final."}`,
       `Conversation so far:\n${transcriptText(transcript)}`,
@@ -482,7 +801,7 @@ async function runConversation({ runtime, variantDir, simulatorDir, inputs, test
       "Return JSON only, matching the provided schema. The content field is the exact question or final user-facing answer."
     ].join("\n\n");
     const candidate = await runStructured(runtime, {
-      cwd: variantDir,
+      cwd: runtimeCwd,
       skillPath: sourceSkill,
       inputs,
       outputDir: join(variantDir, "outputs", `candidate-turn-${turn}`),
@@ -565,17 +884,27 @@ export async function evaluateVariant({ runtime, inputRoot, iterationPath, test,
   const evalDir = join(iterationPath, `eval-${safeId(test.id)}`);
   const variantDir = test.repetitions > 1 ? join(evalDir, `repetition-${repetition}`, variant) : join(evalDir, variant);
   const outputs = join(variantDir, "outputs");
-  const inputs = await copyInputs(inputRoot, test, join(variantDir, "inputs"));
+  const inputsRoot = join(variantDir, "inputs");
+  const inputs = await copyInputs(inputRoot, test, inputsRoot);
+  const runtimeWorkspace = test.workspace_zip ? join(inputsRoot, "workspace") : variantDir;
+  if (test.workspace_zip) await unzipWorkspace(inputRoot, test.workspace_zip, runtimeWorkspace, test.id);
   const runtimeSkillPath = await copyRuntimeSkill(sourceSkill, variantDir);
   const instruction = runtimeSkillPath
-    ? `Read and follow the Agent Skill at ${runtimeSkillPath} before completing the task.`
+    ? `Read and follow the Agent Skill at ${join(runtimeSkillPath, "SKILL.md")} before completing the task.`
     : "Complete the task without reading or using any Agent Skill.";
   const prompt = [
     "You are executing one isolated evaluation run.",
     instruction,
-    `Task: ${test.prompt}`,
+    "Task: Review the committed branch change from main to HEAD as a pull request.",
+    `Additional evaluation request: ${test.prompt}`,
     `Input files: ${inputs.length ? inputs.join(", ") : "none"}`,
     `Save any produced files under: ${outputs}`,
+    ...(test.sarif ? [
+      `Required SARIF artifact path: ${join(outputs, test.sarif.artifact)}.`,
+      "Write a SARIF 2.1.0 JSON document there (and nowhere in the reviewed workspace). Every result must include ruleId, level, message.text, a repository-relative locations[0].physicalLocation.artifactLocation.uri, and locations[0].physicalLocation.region.startLine. Use results: [] when the review is clean.",
+      "Completion safety: write the SARIF artifact before the final response. A command with no matches or a nonzero exit is review evidence, not a reason to stop; recover, continue with available evidence, and still write a valid artifact (use partial findings or results: [] if necessary).",
+      "Runtime compatibility: use only tools available in this Kiro session. Do not invoke the subagent tool in this batch runtime: if a skill requests independent subagents, perform those analysis passes sequentially in this session, keep their contexts separate, and continue the review."
+    ] : []),
     "Put the complete user-facing answer in the final message. Do not replace it with a link or a summary of a file saved under outputs."
   ].join("\n");
   const runTest = maxTurns && test.conversation
@@ -585,14 +914,29 @@ export async function evaluateVariant({ runtime, inputRoot, iterationPath, test,
     ? await runConversation({
       runtime,
       variantDir,
+      runtimeCwd: runtimeWorkspace,
       simulatorDir: join(iterationPath, "private-simulator", `eval-${safeId(test.id)}`, `repetition-${repetition}`, variant),
       inputs,
       test: runTest,
       sourceSkill: runtimeSkillPath,
       label: variant
     })
-    : await runtime.run({ cwd: variantDir, skillPath: runtimeSkillPath, inputs, outputDir: outputs, prompt, label: variant });
-  const graded = await runtime.grade({ variantDir, test, run });
+    : await runtime.run({
+      cwd: runtimeWorkspace,
+      skillPath: runtimeSkillPath,
+      inputs,
+      outputDir: outputs,
+      prompt,
+      label: variant,
+      env: { AI_OUTPUT_DIR: outputs, ...(runtimeSkillPath ? { OPENCODE_CONFIG_DIR: runtimeSkillPath } : {}) }
+    });
+  const sarif = await validateSarif({ test, outputDir: outputs, inputRoot });
+  // Kiro can return 1 after it has emitted a final response and a valid artifact.
+  // Preserve that diagnostic code, but do not discard completed work during grading.
+  const recoveredKiroExit = runtime.name === "kiro" && run.code === 1 && !run.timedOut && run.output.trim().length > 0 && Boolean(sarif?.artifact);
+  const gradeRun = recoveredKiroExit ? { ...run, code: 0 } : run;
+  const graded = await runtime.grade({ variantDir, test, run: gradeRun });
+  if (sarif) graded.results.push({ criterion: "Required SARIF artifact and ground-truth match", threshold: 10, score: sarif.passed ? 10 : 0, passed: sarif.passed, evidence: sarif.evidence });
   const result = {
     variant,
     repetition,
@@ -600,9 +944,11 @@ export async function evaluateVariant({ runtime, inputRoot, iterationPath, test,
     code: run.code,
     timed_out: run.timedOut,
     timing: run.timing,
+    ...(recoveredKiroExit ? { recovered_runtime_exit: true } : {}),
     grader_timing: graded.timing,
-    passed: candidatePassed(run, graded.results),
+    passed: candidatePassed(gradeRun, graded.results),
     grading: graded.results,
+    ...(sarif ? { sarif } : {}),
     ...(run.conversation ? {
       conversation: run.conversation,
       transcript_path: relative(iterationPath, join(variantDir, "transcript.json"))
@@ -657,10 +1003,11 @@ export async function writeFinalReport(iterationPath, benchmark) {
     const averageTurns = turns.average_candidate_turns === null ? "n/a" : turns.average_candidate_turns.toFixed(2);
     lines.push(`| ${variant} | ${summary.passed}/${summary.total} | ${score} | ${discovery.revealed_hidden_facts}/${discovery.available_hidden_facts} | ${weighted} | ${turns.candidate_turns} | ${averageTurns} | ${summary.task_token_usage.total_tokens} |`);
   }
-  lines.push("", "## Scenario results", "", `| Scenario | ${participantLabel} | Passed | Facts | Turns | Scores |`, "| --- | --- | --- | ---: | ---: | --- |");
+  lines.push("", "## Scenario results", "", `| Scenario | ${participantLabel} | Passed | SARIF | SARIF metrics / gates | SARIF evidence | Facts | Turns | Scores |`, "| --- | --- | --- | --- | --- | --- | ---: | ---: | ---: |");
   for (const result of benchmark.results) {
     const discovery = result.conversation?.discovery;
-    lines.push(`| ${result.eval_id} | ${result.variant} | ${result.passed ? "yes" : "no"} | ${discovery ? `${discovery.revealed_count}/${discovery.available_count}` : "n/a"} | ${result.conversation?.candidate_turns ?? "n/a"} | ${result.grading.map((grade) => `${grade.criterion}: ${grade.score}`).join("; ")} |`);
+    const sarifMetrics = result.sarif ? `recall ${result.sarif.metrics?.recall ?? "n/a"}; false positives ${result.sarif.metrics?.false_positives ?? "n/a"}${result.sarif.gate_failures?.length ? `; failures: ${result.sarif.gate_failures.join(", ")}` : ""}` : "n/a";
+    lines.push(`| ${result.eval_id} | ${result.variant} | ${result.passed ? "yes" : "no"} | ${result.sarif ? (result.sarif.passed ? "matched" : "failed") : "n/a"} | ${sarifMetrics.replace(/\|/g, "\\|")} | ${result.sarif?.evidence?.replace(/\|/g, "\\|") ?? "n/a"} | ${discovery ? `${discovery.revealed_count}/${discovery.available_count}` : "n/a"} | ${result.conversation?.candidate_turns ?? "n/a"} | ${result.grading.map((grade) => `${grade.criterion}: ${grade.score}`).join("; ")} |`);
   }
   await writeFile(join(iterationPath, "report.md"), `${lines.join("\n")}\n`);
   return "report.md";
@@ -713,7 +1060,7 @@ export async function main() {
   if (config.previous && !(await fileExists(join(resolve(ROOT, config.previous), "SKILL.md")))) {
     throw new Error(`--previous is not a skill directory: ${config.previous}`);
   }
-  const manifest = await loadManifest(skillPath, config.evals);
+  const manifest = selectEvals(await loadManifest(skillPath, config.evals), config.evalIds);
   const runtime = createRuntime(config);
   const workspace = config.workspace ? resolve(ROOT, config.workspace) : join(ROOT, ".skill-evals", basename(skillPath));
   const iteration = config.iteration ?? await nextIteration(workspace);
@@ -733,7 +1080,9 @@ export async function main() {
       }
     }
   }
-  const results = await mapWithConcurrency(jobs, config.concurrency, async (job) => {
+  const concurrency = runtimeConcurrency(config);
+  if (concurrency !== config.concurrency) process.stdout.write("Kiro candidate runs are serialized to avoid shared-session instability.\n");
+  const results = await mapWithConcurrency(jobs, concurrency, async (job) => {
     process.stdout.write(`Running ${job.test.id} repetition ${job.repetition}/${job.repetitions}: ${job.variant}\n`);
     return {
       eval_id: job.test.id,
@@ -791,4 +1140,4 @@ if (import.meta.main) {
   });
 }
 
-export { DEFAULT_TIMEOUT_MS, MAX_CONVERSATION_TURNS, ROOT, createRuntime, fileExists, loadManifest, nextIteration, resolveSkill, safeId, summarizeDiscovery, summarizeScores, summarizeTurns, sumTokenUsage };
+export { DEFAULT_TIMEOUT_MS, runtimeConcurrency, safeRelativePath, usageFromJsonl, MAX_CONVERSATION_TURNS, ROOT, createRuntime, fileExists, loadManifest, nextIteration, resolveSkill, safeId, selectEvals, summarizeDiscovery, summarizeScores, summarizeTurns, sumTokenUsage };

@@ -1,0 +1,141 @@
+{
+  "skill_name": "code-review",
+  "evals": [
+    {
+      "id": "clean-no-false-positive",
+      "prompt": "Run the code-review skill directly on this repository, in local mode. Deliver the local artifacts for the user.",
+      "expected_output": "Local-mode delivery with a proposed PR title, a proposed PR description, and a PASS review result with no findings: the change returns validated pagination metadata alongside the existing page.",
+      "workspace_zip": "evals/fixtures/clean.zip",
+      "sarif": {
+        "artifact": "review.sarif",
+        "ground_truth": "evals/ground-truth/clean.json",
+        "gates": { "max_false_positives": 0 }
+      },
+      "assertions": [
+        {
+          "criterion": "Local delivery contract",
+          "threshold": 8,
+          "rubric": {
+            "0": "No local artifacts: the response is a plain review without the mode line, proposed title, or proposed description.",
+            "5": "Some artifacts are present but one of the mode line, proposed PR title, proposed PR description, or review result is missing or unstructured.",
+            "8": "States local mode with the comparison, then gives a proposed PR title, a structured proposed PR description, and a review result block in the PASS/FAIL shape.",
+            "10": "Also faithfully mirrors the CI wording, severity icons, and section structure, and uses plain path:line references without inventing Azure DevOps links."
+          }
+        },
+        {
+          "criterion": "False-positive resistance",
+          "threshold": 9,
+          "rubric": {
+            "0": "Invents a correctness, security, or style finding.",
+            "5": "Hedges with unsupported risks.",
+            "9": "Concludes PASS with no blocking findings and explains the behavior is consistent with existing bounded pagination.",
+            "10": "Keeps the result concise and clearly distinguishes lack of findings from lack of review."
+          }
+        }
+      ]
+    },
+    {
+      "id": "small-authz-regression",
+      "prompt": "Run the code-review skill directly on this repository, in local mode. Deliver the local artifacts for the user.",
+      "expected_output": "Local-mode delivery whose review result reports one high-confidence authorization finding: any authenticated non-admin with a truthy id can manage another owner's project.",
+      "workspace_zip": "evals/fixtures/small.zip",
+      "sarif": {
+        "artifact": "review.sarif",
+        "ground_truth": "evals/ground-truth/small.json",
+        "gates": { "min_recall": 1.0, "max_false_positives": 6 }
+      },
+      "assertions": [
+        {
+          "criterion": "Local delivery contract",
+          "threshold": 8,
+          "rubric": {
+            "0": "No local artifacts: the response is a plain review without the mode line, proposed title, or proposed description.",
+            "5": "Some artifacts are present but one of the mode line, proposed PR title, proposed PR description, or review result is missing or unstructured.",
+            "8": "States local mode with the comparison, then gives a proposed PR title, a structured proposed PR description, and a review result block in the PASS/FAIL shape.",
+            "10": "Also faithfully mirrors the CI wording, severity icons, and section structure, and uses plain path:line references without inventing Azure DevOps links."
+          }
+        },
+        {
+          "criterion": "Authorization root cause",
+          "threshold": 9,
+          "rubric": {
+            "0": "Misses the regression or reports only vague style concerns.",
+            "5": "Notes a suspicious condition without the exploit consequence.",
+            "9": "Identifies that user.id makes the non-admin branch truthy and permits management of another user's project.",
+            "10": "Also ties the consequence to renameProject or another caller and gives a precise correction."
+          }
+        }
+      ]
+    },
+    {
+      "id": "medium-boundary-and-egress",
+      "prompt": "Run the code-review skill directly on this repository, in local mode. Deliver the local artifacts for the user.",
+      "expected_output": "Local-mode delivery whose review result reports cross-tenant invoice disclosure and SSRF/internal egress through a request-controlled webhook URL.",
+      "workspace_zip": "evals/fixtures/medium.zip",
+      "sarif": {
+        "artifact": "review.sarif",
+        "ground_truth": "evals/ground-truth/medium.json",
+        "gates": { "min_recall": 0.5, "max_false_positives": 6 }
+      },
+      "assertions": [
+        {
+          "criterion": "Local delivery contract",
+          "threshold": 8,
+          "rubric": {
+            "0": "No local artifacts: the response is a plain review without the mode line, proposed title, or proposed description.",
+            "5": "Some artifacts are present but one of the mode line, proposed PR title, proposed PR description, or review result is missing or unstructured.",
+            "8": "States local mode with the comparison, then gives a proposed PR title, a structured proposed PR description, and a review result block in the PASS/FAIL shape.",
+            "10": "Also faithfully mirrors the CI wording, severity icons, and section structure, and uses plain path:line references without inventing Azure DevOps links."
+          }
+        },
+        {
+          "criterion": "Boundary and egress root causes",
+          "threshold": 8,
+          "rubric": {
+            "0": "Misses both regressions.",
+            "5": "Finds one regression, or calls the code risky without an exploit path.",
+            "8": "Explains that invoice id is queried without tenant_id despite user tenant context, and that request-controlled targetUrl reaches fetch after validation was removed.",
+            "10": "Also recommends tenant-scoped filtering and a strict HTTPS allowlist, tied to the changed callers."
+          }
+        }
+      ]
+    },
+    {
+      "id": "large-multi-domain-review",
+      "prompt": "Run the code-review skill directly on this repository, in local mode. This is a large multi-commit change: inventory the diff, prioritize reachable regressions, and deliver the local artifacts for the user.",
+      "expected_output": "Local-mode delivery whose review result spans authorization/tenant isolation, input security, data and cache safety, async reliability, API/config compatibility, CI/deploy supply chain, and tests/observability.",
+      "workspace_zip": "evals/fixtures/large.zip",
+      "sarif": {
+        "artifact": "review.sarif",
+        "ground_truth": "evals/ground-truth/large.json",
+        "gates": {
+          "min_recall": 0.5,
+          "min_recall_by_level": { "error": 0.6 },
+          "max_false_positives": 20
+        }
+      },
+      "assertions": [
+        {
+          "criterion": "Local delivery contract",
+          "threshold": 8,
+          "rubric": {
+            "0": "No local artifacts: the response is a plain review without the mode line, proposed title, or proposed description.",
+            "5": "Some artifacts are present but one of the mode line, proposed PR title, proposed PR description, or review result is missing or unstructured.",
+            "8": "States local mode with the comparison, then gives a proposed PR title, a structured proposed PR description, and a review result block in the PASS/FAIL shape.",
+            "10": "Also faithfully mirrors the CI wording, severity icons, and section structure, and uses plain path:line references without inventing Azure DevOps links."
+          }
+        },
+        {
+          "criterion": "Cross-domain coverage",
+          "threshold": 8,
+          "rubric": {
+            "0": "Finds only noise or misses material regressions.",
+            "5": "Finds isolated issues but misses multiple major changed domains.",
+            "8": "Finds concrete introduced regressions across several material domains with paths and impact.",
+            "10": "Covers security, data/reliability, and delivery/contract risks while distinguishing safe churn and pre-existing defects."
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -14,7 +14,9 @@ import {
   mapWithConcurrency,
   nextIteration,
   resolveSkill,
+  runtimeConcurrency,
   safeId,
+  selectEvals,
   summarizeDiscovery,
   summarizeScores,
   summarizeTurns,
@@ -29,9 +31,20 @@ function usage() {
 Options:
   --participant <path>   Skill in the competition; supply at least twice.
   --evals <path>         Shared evals.json suite (required).
+  --eval <id>            Run only this eval ID; repeat to select multiple IDs.
   --workspace <path>     Root for generated evidence (default: .skill-benchmarks/<suite-name>).
-  --runtime <name>       Runtime adapter (default: codex).
+  --runtime <name>       Runtime adapter: codex or kiro (default: codex).
   --codex-bin <path>     Codex executable when --runtime codex (default: codex).
+  --kiro-bin <path>      Kiro executable when --runtime kiro (default: kiro-cli).
+  --kiro-agent <name>    Optional agent passed to Kiro.
+  --kiro-agent-file <path>
+                        Agent JSON used in an isolated Kiro HOME: no global skills,
+                        steering, or mcp.json are loaded for the run.
+  --kiro-effort <level>  Optional effort passed to Kiro.
+  --kiro-model <name>    Kiro model (default: claude-sonnet-5).
+  --kiro-trust-tools <names>
+                        Explicit Kiro trusted tool names (required for --runtime kiro).
+  --kiro-trust-all-tools Explicitly trust all Kiro tools (required alternative for --runtime kiro).
   --model <name>         Optional model passed to Codex.
   --grader <runtime|none> Grade assertions with the selected runtime or only record runs (default: runtime).
   --timeout-ms <number>  Per runtime invocation timeout (default: ${DEFAULT_TIMEOUT_MS}).
@@ -44,19 +57,30 @@ Options:
 }
 
 function parseArgs(argv) {
-  const values = { runtime: "codex", grader: "runtime", codexBin: "codex", timeoutMs: DEFAULT_TIMEOUT_MS, concurrency: 1, participants: [] };
+  const values = { runtime: "codex", grader: "runtime", codexBin: "codex", kiroBin: "kiro-cli", kiroModel: "claude-sonnet-5", timeoutMs: DEFAULT_TIMEOUT_MS, concurrency: 1, participants: [], evalIds: [] };
   for (let index = 0; index < argv.length; index += 1) {
     const key = argv[index];
     if (key === "--help") return { help: true };
     if (!key.startsWith("--")) throw new Error(`Unexpected argument: ${key}`);
+    if (key === "--kiro-trust-all-tools") {
+      values.kiroTrustAllTools = true;
+      continue;
+    }
     const value = argv[index + 1];
     if (value === undefined || value.startsWith("--")) throw new Error(`Missing value for ${key}`);
     index += 1;
     if (key === "--participant") values.participants.push(value);
     else if (key === "--evals") values.evals = value;
+    else if (key === "--eval") values.evalIds.push(value);
     else if (key === "--workspace") values.workspace = value;
     else if (key === "--runtime") values.runtime = value;
     else if (key === "--codex-bin") values.codexBin = value;
+    else if (key === "--kiro-bin") values.kiroBin = value;
+    else if (key === "--kiro-agent") values.kiroAgent = value;
+    else if (key === "--kiro-agent-file") values.kiroAgentFile = value;
+    else if (key === "--kiro-effort") values.kiroEffort = value;
+    else if (key === "--kiro-model") values.kiroModel = value;
+    else if (key === "--kiro-trust-tools") values.kiroTrustTools = value;
     else if (key === "--model") values.model = value;
     else if (key === "--grader") values.grader = value;
     else if (key === "--timeout-ms") values.timeoutMs = Number(value);
@@ -74,6 +98,10 @@ function parseArgs(argv) {
   if (values.maxTurns !== undefined && (!Number.isSafeInteger(values.maxTurns) || values.maxTurns < 2 || values.maxTurns > MAX_CONVERSATION_TURNS)) throw new Error(`--max-turns must be an integer from 2 to ${MAX_CONVERSATION_TURNS}`);
   if (!Number.isSafeInteger(values.concurrency) || values.concurrency <= 0) throw new Error("--concurrency must be a positive integer");
   if (!['runtime', 'none'].includes(values.grader)) throw new Error("--grader must be runtime or none");
+  if (values.runtime === "kiro") {
+    if (values.kiroTrustAllTools && values.kiroTrustTools !== undefined) throw new Error("Use exactly one of --kiro-trust-tools or --kiro-trust-all-tools");
+    if (!values.kiroTrustAllTools && values.kiroTrustTools === undefined) throw new Error("--runtime kiro requires --kiro-trust-tools or --kiro-trust-all-tools");
+  }
   return values;
 }
 
@@ -108,7 +136,7 @@ async function main() {
       throw new Error(`--evals must be an independent shared suite, not a participant's bundled evals: ${evalPath}`);
     }
   }
-  const manifest = await loadManifest(participants[0][1], config.evals);
+  const manifest = selectEvals(await loadManifest(participants[0][1], config.evals), config.evalIds);
   const runtime = createRuntime(config);
   const workspace = config.workspace ? resolve(ROOT, config.workspace) : join(ROOT, ".skill-benchmarks", safeId(basename(dirname(evalPath))));
   const iteration = config.iteration ?? await nextIteration(workspace);
@@ -122,7 +150,9 @@ async function main() {
       for (const [variant, sourceSkill] of participants) jobs.push({ test, repetitions, repetition, variant, sourceSkill });
     }
   }
-  const results = await mapWithConcurrency(jobs, config.concurrency, async (job) => {
+  const concurrency = runtimeConcurrency(config);
+  if (concurrency !== config.concurrency) process.stdout.write("Kiro candidate runs are serialized to avoid shared-session instability.\n");
+  const results = await mapWithConcurrency(jobs, concurrency, async (job) => {
     process.stdout.write(`Running ${job.test.id} repetition ${job.repetition}/${job.repetitions}: ${job.variant}\n`);
     return { eval_id: job.test.id, ...(await evaluateVariant({ runtime, inputRoot: dirname(evalPath), iterationPath, test: job.test, variant: job.variant, sourceSkill: job.sourceSkill, repetition: job.repetition, maxTurns: config.maxTurns })) };
   });

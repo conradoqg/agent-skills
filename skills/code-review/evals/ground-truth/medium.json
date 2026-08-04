@@ -1,0 +1,31 @@
+{
+  "scenario": "medium-boundary-and-egress",
+  "base_ref": "main",
+  "head_ref": "feature/large-boundary-and-egress",
+  "expected_finding_count": 2,
+  "findings": [
+    {
+      "rule_id": "TENANT-BOUNDARY-MISSING",
+      "level": "error",
+      "path": "src/invoices.js",
+      "line": 3,
+      "title": "Invoice lookup drops tenant boundary",
+      "evidence": "The changed query no longer binds tenant_id even though caller passes an authenticated user tenant.",
+      "impact": "An invoice id from another tenant can be returned through getInvoice."
+    },
+    {
+      "rule_id": "SSRF-WEBHOOK-TARGET",
+      "level": "error",
+      "path": "src/webhooks.js",
+      "line": 2,
+      "title": "Request-controlled webhook target is fetched without validation",
+      "evidence": "sendTestWebhook passes request.body.targetUrl to deliverWebhook, whose previous HTTPS host allowlist was deleted.",
+      "impact": "An authenticated caller can trigger server-side requests to internal or arbitrary hosts."
+    }
+  ],
+  "forbidden_findings": [
+    "style",
+    "missing tests",
+    "module count"
+  ]
+}
