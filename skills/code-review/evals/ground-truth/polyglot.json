@@ -1,0 +1,272 @@
+{
+  "matching_note": "Private evaluator material. Second large fixture, deliberately disjoint from the TypeScript one on both language and defect class, so an improvement that helps only one of them is fitted to that one. Levels are assigned from the consequence and stated independently of any reviewer's rubric: a reachable security failure, data loss or corruption, a broken consumer contract, or a broken delivery gate is error; a degraded behavior or a weakened operational signal is warning. Each finding is anchored at the statement an author would edit to fix it, and matching is path, SARIF level, and line within line_tolerance. requires_reading lists the unchanged files a reviewer must open before the impact is visible; non_findings must not be reported.",
+  "fixture": {
+    "branch": "feature/ledger-throughput",
+    "commits": 28,
+    "diff": "93 files changed, 1888 insertions(+), 59 deletions(-)",
+    "languages": {
+      ".yml": 1,
+      ".md": 18,
+      ".sql": 4,
+      "(none)": 1,
+      ".yaml": 2,
+      ".txt": 1,
+      ".sh": 2,
+      ".py": 67,
+      ".go": 17,
+      ".mod": 1
+    },
+    "line_tolerance": 6
+  },
+  "line_tolerance": 6,
+  "findings": [
+    {
+      "id": "poly-01",
+      "rule_id": "per-row-lookup-in-loop",
+      "level": "warning",
+      "severity": "MEDIUM",
+      "path": "svc/reports/build.py",
+      "line": 10,
+      "category": "performance-reliability",
+      "title": "Report performs one query per usage row",
+      "impact": "The batch read was replaced by a per-row lookup inside the loop, so a report over N rows issues N round trips. The batch helper it stopped calling is still exported and unchanged, and its docstring asks callers to use it inside loops. Level: the consequence is a query volume that grows with input, which degrades a read path without losing or corrupting anything, so it is warning under the level principle.",
+      "requires_reading": [
+        "svc/customers/repository.py",
+        "svc/db.py"
+      ]
+    },
+    {
+      "id": "poly-02",
+      "rule_id": "handle-leaked-on-error-path",
+      "level": "warning",
+      "severity": "MEDIUM",
+      "path": "svc/export/writer.py",
+      "line": 7,
+      "category": "performance-reliability",
+      "title": "File handle is no longer closed when validation fails",
+      "impact": "The try/finally that guaranteed the close was removed while the validation loop that raises stayed, so every rejected export leaks a descriptor and leaves a partial file behind. Exports run per request, so the leak accumulates. Level: descriptor exhaustion degrades the service as it accumulates rather than losing committed data, so it is warning under the level principle.",
+      "requires_reading": []
+    },
+    {
+      "id": "poly-03",
+      "rule_id": "unsafe-deserialization-of-upload",
+      "level": "error",
+      "severity": "CRITICAL",
+      "path": "svc/config/loader.py",
+      "line": 11,
+      "category": "security",
+      "title": "Customer-uploaded profile is parsed with the object-constructing loader",
+      "impact": "The unchanged intake path passes an uploaded body straight to this parser, and the full loader instantiates arbitrary types named in the document. The sibling function kept the safe loader, and the module docstring states the rule this change breaks.",
+      "requires_reading": [
+        "svc/config/profiles.py"
+      ]
+    },
+    {
+      "id": "poly-04",
+      "rule_id": "naive-datetime-boundary",
+      "level": "error",
+      "severity": "HIGH",
+      "path": "svc/billing/period.py",
+      "line": 7,
+      "category": "data-persistence",
+      "title": "Period boundary became timezone naive",
+      "impact": "The unchanged scheduler compares this boundary against timezone-aware timestamps, which raises on comparison, and the repository states that all timestamps are aware and UTC. Level: comparing a naive boundary with an aware timestamp raises at runtime in the unchanged scheduler, which breaks a consumer rather than degrading it, so it is error under the level principle.",
+      "requires_reading": [
+        "svc/billing/schedule.py"
+      ]
+    },
+    {
+      "id": "poly-05",
+      "rule_id": "currency-in-binary-float",
+      "level": "error",
+      "severity": "HIGH",
+      "path": "svc/billing/totals.py",
+      "line": 7,
+      "category": "data-persistence",
+      "title": "Currency amounts are now computed in binary floating point",
+      "impact": "Invoice totals accumulate representation error, and the unchanged persistence path multiplies the result by 100 and truncates to an integer, so a cent can be lost per invoice. The repository states that money is decimal.",
+      "requires_reading": [
+        "svc/billing/persist.py",
+        "README.md"
+      ]
+    },
+    {
+      "id": "poly-06",
+      "rule_id": "open-redirect",
+      "level": "error",
+      "severity": "HIGH",
+      "path": "svc/web/routes.py",
+      "line": 12,
+      "category": "security",
+      "title": "Checkout redirect target is no longer restricted to known paths",
+      "impact": "The allow-list check was removed while the allow list itself remained, so a request-controlled value becomes the Location header and the endpoint can redirect a signed-in user to an arbitrary destination. An existing test asserts the removed behavior.",
+      "requires_reading": [
+        "tests/test_routes.py"
+      ]
+    },
+    {
+      "id": "poly-07",
+      "rule_id": "interface-member-without-implementor",
+      "level": "error",
+      "severity": "HIGH",
+      "path": "worker/queue/handler.go",
+      "line": 8,
+      "category": "runtime-contract",
+      "title": "Interface gained a method its implementor does not provide",
+      "impact": "The in-memory handler is the only implementation and was not changed, so it no longer satisfies the interface: the build breaks, and the dispatch loop that calls the new method would otherwise retry an unknown number of times.",
+      "requires_reading": [
+        "worker/queue/inmem/consumer.go"
+      ]
+    },
+    {
+      "id": "poly-08",
+      "rule_id": "retry-without-idempotency",
+      "level": "error",
+      "severity": "HIGH",
+      "path": "worker/dispatch/retry.go",
+      "line": 25,
+      "category": "performance-reliability",
+      "title": "A non-idempotent charge is now retried",
+      "impact": "The retried operation posts a charge, and the unchanged provider call documents that it creates a new charge per call with no idempotency key, so a transient failure after the provider accepted the request double-charges the customer.",
+      "requires_reading": [
+        "worker/dispatch/charge.go"
+      ]
+    },
+    {
+      "id": "poly-09",
+      "rule_id": "unbounded-buffer",
+      "level": "warning",
+      "severity": "MEDIUM",
+      "path": "worker/ingest/collect.go",
+      "line": 15,
+      "category": "performance-reliability",
+      "title": "Ingest buffers the whole input before writing",
+      "impact": "Streaming was replaced by materializing every row to order them, so peak memory now grows with input size instead of staying flat, and the function's own contract promised the opposite.",
+      "requires_reading": []
+    },
+    {
+      "id": "poly-10",
+      "rule_id": "exit-status-contract-broken",
+      "level": "error",
+      "severity": "HIGH",
+      "path": "worker/cmd/main.go",
+      "line": 28,
+      "category": "runtime-contract",
+      "title": "Worker exits successfully with unprocessed messages",
+      "impact": "The unchanged release gate treats a zero status as a clean drain, so a run that leaves work behind now passes the gate silently. The pending count also moved from stderr to stdout, so the operator message is no longer where the gate looks.",
+      "requires_reading": [
+        "scripts/check_exit.sh",
+        "docs/operations.md"
+      ]
+    },
+    {
+      "id": "poly-11",
+      "rule_id": "index-dropped-still-needed",
+      "level": "warning",
+      "severity": "MEDIUM",
+      "path": "db/migrations/0005_drop_usage_index.sql",
+      "line": 3,
+      "category": "data-persistence",
+      "title": "Dropped index still serves a live query",
+      "impact": "The statement inventory still contains a period-and-plan filter over usage, and the reporting query that runs it was not changed to filter on customer, so the drop turns that read into a scan. The migration's own comment asserts the opposite. Level: losing the access path turns a read into a scan, which degrades it without breaking correctness, so it is warning under the level principle.",
+      "requires_reading": [
+        "db/queries/statements.sql",
+        "svc/reports/query.py"
+      ]
+    },
+    {
+      "id": "poly-12",
+      "rule_id": "readiness-probe-removed",
+      "level": "warning",
+      "severity": "MEDIUM",
+      "path": "deploy/app.yaml",
+      "line": 6,
+      "category": "observability",
+      "title": "Readiness probe removed from the deployment",
+      "impact": "The rollout waited on this probe; without it the platform reports success as soon as the container starts, so a deployment that cannot serve traffic looks healthy. The operations document states the probe is required.",
+      "requires_reading": [
+        "docs/operations.md"
+      ]
+    },
+    {
+      "id": "poly-13",
+      "rule_id": "required-check-made-advisory",
+      "level": "error",
+      "severity": "HIGH",
+      "path": ".github/workflows/verify.yml",
+      "line": 18,
+      "category": "ci-cd",
+      "title": "Dependency scan can no longer fail the pipeline",
+      "impact": "The scan still runs and still reports, but its result stops blocking, so a vulnerable dependency merges with a green pipeline. Nothing records an expiry or an owner for the exception.",
+      "requires_reading": []
+    },
+    {
+      "id": "poly-14",
+      "rule_id": "container-runs-as-root",
+      "level": "warning",
+      "severity": "MEDIUM",
+      "path": "deploy/Dockerfile",
+      "line": 8,
+      "category": "supply-chain",
+      "title": "Container lost its unprivileged user",
+      "impact": "The user creation and the USER directive were dropped while a package install was added, so the service now runs as root in production and any code execution inside the container starts privileged.",
+      "requires_reading": []
+    },
+    {
+      "id": "poly-15",
+      "rule_id": "shell-error-exit-removed",
+      "level": "error",
+      "severity": "HIGH",
+      "path": "scripts/release.sh",
+      "line": 2,
+      "category": "ci-cd",
+      "title": "Release script continues after a failed step",
+      "impact": "Dropping the errexit option means a failing test run, a failing build or a failing release gate no longer stops the script, which then prints its success message and exits zero.",
+      "requires_reading": [
+        "scripts/check_exit.sh"
+      ]
+    }
+  ],
+  "non_findings": [
+    {
+      "kind": "decoy",
+      "path": "svc/tools/convert.py",
+      "why": "Subprocess invocation, but an argument vector with no shell and no interpolation of caller input."
+    },
+    {
+      "kind": "decoy",
+      "path": "svc/files/fetch.py",
+      "why": "Fetches a customer-named mirror, but resolution is an allow list in an unchanged module, so the name cannot become an arbitrary target."
+    },
+    {
+      "kind": "decoy",
+      "path": "svc/reports/query.py",
+      "why": "Raw SQL with an added predicate, fully parameterized."
+    },
+    {
+      "kind": "decoy",
+      "path": "db/migrations/0006_recreate_note_constraint.sql",
+      "why": "The constraint is dropped and recreated in the same migration."
+    },
+    {
+      "kind": "decoy",
+      "path": "svc/web/routes.py",
+      "why": "The added export-status route looks unauthenticated, but the router it joins is mounted with a session dependency in an unchanged file. Only the redirect in this file is a finding."
+    },
+    {
+      "kind": "pre-existing",
+      "path": "svc/legacy/importer.py",
+      "why": "pickle.loads predates main and is untouched by the range."
+    },
+    {
+      "kind": "pre-existing",
+      "path": "svc/legacy/admin_sql.py",
+      "why": "SQL concatenation predates main and is untouched by the range."
+    },
+    {
+      "kind": "cancelled-in-range",
+      "path": "svc/config/mirrors.yaml",
+      "why": "A token literal is added and removed inside the range, so the net diff contains no secret."
+    }
+  ]
+}
