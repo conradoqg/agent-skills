@@ -209,13 +209,13 @@
     {
       "id": "large-15",
       "rule_id": "lost-update-no-version",
-      "level": "warning",
-      "severity": "MEDIUM",
+      "level": "error",
+      "severity": "HIGH",
       "path": "apps/api/src/invoices/adjustments.ts",
       "line": 14,
       "category": "data-persistence",
       "title": "Adjustment write dropped its optimistic concurrency guard",
-      "impact": "The read-modify-write no longer checks the version it read, so two concurrent operator adjustments silently overwrite each other instead of returning a conflict.",
+      "impact": "The read-modify-write no longer checks the version it read, so two concurrent operator adjustments silently overwrite each other instead of returning a conflict. A committed write is lost with no error and no record, which the published severity rubric classifies as blocking data loss rather than a tuning concern.",
       "requires_reading": [
         "apps/api/src/invoices/repository.ts"
       ]
@@ -249,13 +249,13 @@
     {
       "id": "large-18",
       "rule_id": "stale-permission-cache",
-      "level": "warning",
-      "severity": "MEDIUM",
+      "level": "error",
+      "severity": "HIGH",
       "path": "apps/api/src/auth/session-cache.ts",
       "line": 6,
       "category": "security",
       "title": "Roles are cached for an hour with no invalidation on revocation",
-      "impact": "The unchanged revocation path deletes the row and the session entry but not this cache, so a revoked staff role keeps working for up to an hour.",
+      "impact": "The unchanged revocation path deletes the row and the session entry but not this cache, so a revoked staff role keeps working for up to an hour. An authorization decision that survives its revocation is a time-bounded bypass, which the published severity rubric classifies as blocking.",
       "requires_reading": [
         "apps/api/src/auth/revoke.ts"
       ]
