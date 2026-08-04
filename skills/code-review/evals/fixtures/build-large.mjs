@@ -2007,7 +2007,7 @@ const FINDINGS = [
     path: "apps/api/src/invoices/adjustments.ts",
     anchor: "await setInvoiceTotal(context.db, tenantId, invoiceId, invoice.total_cents + delta);",
     title: "Adjustment write dropped its optimistic concurrency guard",
-    impact: "The read-modify-write no longer checks the version it read, so two concurrent operator adjustments silently overwrite each other instead of returning a conflict. A committed write is lost with no error and no record, which the published severity rubric classifies as blocking data loss rather than a tuning concern.",
+    impact: "The read-modify-write no longer checks the version it read, so two concurrent operator adjustments silently overwrite each other instead of returning a conflict. A committed write is lost with no error, no conflict and no record that it happened, which is data loss rather than a tuning concern.",
     reads: ["apps/api/src/invoices/repository.ts"]
   },
   {
@@ -2043,7 +2043,7 @@ const FINDINGS = [
     path: "apps/api/src/auth/session-cache.ts",
     anchor: "const PERMISSION_TTL_SECONDS = 3600;",
     title: "Roles are cached for an hour with no invalidation on revocation",
-    impact: "The unchanged revocation path deletes the row and the session entry but not this cache, so a revoked staff role keeps working for up to an hour. An authorization decision that survives its revocation is a time-bounded bypass, which the published severity rubric classifies as blocking.",
+    impact: "The unchanged revocation path deletes the row and the session entry but not this cache, so a revoked staff role keeps working for up to an hour. An authorization decision that survives its own revocation for an hour is a bypass with a time bound, not a caching preference.",
     reads: ["apps/api/src/auth/revoke.ts"]
   },
   {
@@ -2199,7 +2199,7 @@ async function main() {
     `${JSON.stringify(
       {
         matching_note:
-          "Private evaluator material: the fixture carries no annotation of any kind. Each finding is anchored at the offending statement in the HEAD version of its file, and the harness matches on path, SARIF level, and line within line_tolerance. Levels follow the skill's severity mapping (CRITICAL/HIGH -> error, MEDIUM -> warning, LOW -> note). requires_reading lists the unchanged files a reviewer must open before the impact is visible; non_findings documents the decoys, the pre-existing defects, and the defect introduced and reverted inside the range, none of which may be reported.",
+          "Levels are assigned from the consequence of each defect and are stated independently of any reviewer's rubric: a reachable security or authorization failure, data loss, a broken consumer contract, injection, or a broken deploy gate is error; a degraded behavior, an ambiguous gap, or a misleading-but-not-inverted signal is warning. Private evaluator material: the fixture carries no annotation of any kind. Each finding is anchored at the offending statement in the HEAD version of its file, and the harness matches on path, SARIF level, and line within line_tolerance. Levels follow the skill's severity mapping (CRITICAL/HIGH -> error, MEDIUM -> warning, LOW -> note). requires_reading lists the unchanged files a reviewer must open before the impact is visible; non_findings documents the decoys, the pre-existing defects, and the defect introduced and reverted inside the range, none of which may be reported.",
         fixture: { branch: BRANCH, commits: Number(commitCount), diff: stat, line_tolerance: LINE_TOLERANCE },
         line_tolerance: LINE_TOLERANCE,
         findings,

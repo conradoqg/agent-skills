@@ -75,6 +75,7 @@ Run the repository checks:
 python3 tests/validate_skills.py
 python3 tests/test_model_ranking.py
 bash tests/test_chrome_launcher.sh
+bash tests/test_impact_map.sh
 node tests/test_evaluate_skills.mjs
 ```
 

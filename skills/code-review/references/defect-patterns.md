@@ -112,16 +112,27 @@ Two rules govern the whole list:
 
 ## Distinguishing what must not be reported
 
-Before reporting, run each candidate against these three disproofs. Each one has
-a mechanical check.
+Before reporting, try to disprove each candidate. These four disproofs each have
+a mechanical check; the list is not exhaustive, and a disproof you find yourself
+counts the same as one written here.
 
 | Disproof | Check |
 | --- | --- |
-| The guarantee exists elsewhere | Read the shared chain, wrapper, base class, or framework hook that applies to the changed unit. A removed local check is not a defect if an unchanged global one covers it |
+| The guarantee exists elsewhere | Read the shared chain, wrapper, base class, framework hook, schema constraint, or platform policy that applies to the changed unit. A removed local check is not a defect if an unchanged one still covers the same sink |
 | It predates this change | The offending line is unchanged in the range. Verify with the diff for that file; if the line is context rather than an addition, it is out of scope for this review |
 | It was cancelled inside the range | The file appears in the commit history but not in the net diff, or the specific line was added and then reverted. `cancelled-files.txt` lists the file-level case |
+| It is a recorded decision | The repository documents this construct as deliberate — an architecture decision record, a policy file, a waiver with a reference. A decision you disagree with is not a defect; raise it as a note against the decision, not as a finding against the diff |
 
-Also do not report: a value that only looks dangerous (randomness used for
-jitter, a fixed literal passed to a subprocess, raw SQL that is parameterized),
-an addition guarded by a flag that defaults to off with a safe fallback, or a
-drop-and-recreate pair that is complete within the same unit.
+The general rule behind all four: a construct is safe when something you can
+point at guarantees the property it appears to violate. Find that guarantee and
+the candidate is disproved; fail to find it and the candidate stands, whatever
+the code looks like. Danger is a property of the reachable path, not of the
+vocabulary in the line — which cuts both ways, so a construct from a scary
+family (a subprocess call, a raw query, a permissive default, an unsafe cast, a
+disabled check, a wildcard, a global) is a finding only when you traced the path
+and no guarantee covers it.
+
+Apply the same discipline to the inverse mistake. Reporting a safe construct
+costs the review its credibility, and the guarantee is often in a file the diff
+does not contain, so a candidate that survives only because you did not look for
+its guarantee is not verified.

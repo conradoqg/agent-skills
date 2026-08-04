@@ -24,6 +24,16 @@ Use objective criteria where possible. Use scoring criteria for semantic
 quality. A case passes only when every criterion reaches its own threshold;
 the average score is diagnostic, not a substitute for a required criterion.
 
+Two integrity rules for hard gates such as SARIF matching. Write the ground
+truth from the consequence of each defect, never by citing the rubric of the
+skill under test: an answer key that argues from a participant's own taxonomy
+cannot falsify that participant, and it silently grades every competitor against
+one participant's judgment. And treat a threshold calibrated from observed
+candidate scores as what it is — a floor that documents current behavior, not
+evidence of quality. Prefer pre-registering a threshold from the standard you
+want to demand, record when you moved one after seeing results, and keep the
+reason in the commit that moves it.
+
 Run the evaluation locally before handoff:
 
 ```bash

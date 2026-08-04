@@ -11,9 +11,12 @@
 #
 # There is deliberately no list of keywords, no declaration syntax, and no file
 # extension logic here. Language handling is delegated to git:
-#   * `git diff -W` expands each hunk to its enclosing block using git's own
-#     per-language funcname drivers, so a body change is attributed to the thing
-#     that contains it even when the signature line never changed;
+#   * `git diff -W` expands each hunk to its enclosing block using git's funcname
+#     heuristic, so a body change is attributed to the thing that contains it even
+#     when the signature line never changed. Without a .gitattributes `diff=<lang>`
+#     attribute git applies its default heuristic rather than a language driver;
+#     that is uniform across languages and good enough here, since the expansion
+#     only has to widen the token window, not parse anything;
 #   * `git grep -w` finds token occurrences without parsing anything.
 # Rarity does the work a stopword list would do: language keywords and generic
 # nouns occur everywhere, so a document-frequency ceiling drops them for free.
@@ -96,7 +99,18 @@ tokenize() {
 
 tokenize "$work/changed-lines" >"$work/tokens-changed" || : >"$work/tokens-changed"
 tokenize "$work/neighborhood" >"$work/tokens-context" || : >"$work/tokens-context"
-sort -u "$work/tokens-changed" "$work/tokens-context" | head -n "$MAX_TOKENS" >"$work/tokens"
+sort -u "$work/tokens-changed" "$work/tokens-context" >"$work/tokens-all"
+candidates=$(wc -l <"$work/tokens-all" | tr -d ' ')
+
+# When there are more candidates than the budget allows, keep the most specific
+# ones rather than the alphabetically first ones. A token that occurs once in the
+# neighborhood names one thing; a token that occurs everywhere in it is structure.
+# Alphabetical truncation would silently discard every name late in the alphabet.
+cat "$work/neighborhood" "$work/changed-lines" | tr -cs 'A-Za-z0-9_' '\n' |
+	grep -E "^[A-Za-z_][A-Za-z0-9_]{$((MIN_TOKEN_LEN - 1)),}$" | sort | uniq -c |
+	awk '{ printf "%06d %s\n", $1, $2 }' | sort >"$work/tokens-ranked" || : >"$work/tokens-ranked"
+awk '{ print $2 }' "$work/tokens-ranked" | head -n "$MAX_TOKENS" | sort -u >"$work/tokens"
+if [ "$candidates" -gt "$MAX_TOKENS" ]; then truncated=$((candidates - MAX_TOKENS)); else truncated=0; fi
 
 # One grep per candidate token. Two generic filters decide what is worth
 # reporting, neither of which knows any language:
@@ -253,7 +267,7 @@ cancelled_count=$(awk '!/^#/ && NF' "$out/cancelled-files.txt" | wc -l | tr -d '
 {
 	printf 'range: %s\n' "$RANGE"
 	printf 'changed files: %s\n' "$changed_count"
-	printf 'candidate tokens examined: %s\n' "$token_count"
+	printf 'candidate tokens examined: %s of %s (%s dropped by the budget, least specific first)\n' "$token_count" "$candidates" "$truncated"
 	printf 'coupling points reported: %s\n' "$coupling_count"
 	printf 'files with names removed and no longer mentioned: %s\n' "$removed_count"
 	printf 'names co-changed across two or more changed files: %s\n' "$cochange_count"
@@ -261,6 +275,13 @@ cancelled_count=$(awk '!/^#/ && NF' "$out/cancelled-files.txt" | wc -l | tr -d '
 	printf 'files touched by commits but absent from the net diff: %s\n' "$cancelled_count"
 	printf 'limits: max tokens %s, reported %s, sites per token %s, document-frequency ceiling %s, min token length %s\n' \
 		"$MAX_TOKENS" "$MAX_REPORTED" "$MAX_SITES" "$MAX_DOC_FREQ" "$MIN_TOKEN_LEN"
+	printf 'scaling: the defaults suit a repository of a few hundred files. Raise IMPACT_MAX_DOC_FREQ in a\n'
+	printf '  large monorepo, where a genuinely shared helper legitimately appears in more files than the\n'
+	printf '  ceiling, and lower it in a small one, where the ceiling admits ordinary vocabulary. Cost is\n'
+	printf '  one repository grep per candidate token, linear in repository size.\n'
+	if [ "$truncated" -gt 0 ]; then
+		printf 'WARNING: the candidate token budget truncated this change. Raise IMPACT_MAX_TOKENS to cover it.\n'
+	fi
 } >"$out/summary.txt"
 
 rm -rf "$work"
