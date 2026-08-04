@@ -40,9 +40,11 @@ that is where every variant loses coverage; the polyglot fixture spreads finding
 about one per directory and every variant, including no skill at all, detects
 0.94+ there.
 
-That is why passes 1 and 2 run per area against `impact/areas.txt`. It is the only
-change measured in this project that moved the number of findings a review
-produces.
+That is why passes 1 and 2 run per area against `impact/areas.txt`, and why each
+area writes its candidates to `ledger.tsv` before the next one opens. The area
+split gives the review a place to finish; the written ledger means a candidate
+survives the walk to delivery without having to stay in view. Those are the two
+changes that moved coverage.
 
 ## Metrics
 
@@ -60,20 +62,27 @@ directions and do not respond to sharper rules.
 
 ## What holds
 
-| Fixture | Variant | n | detect | anchor | near-sev | decoys/run |
-| --- | --- | ---: | ---: | ---: | ---: | ---: |
-| large | no skill | 8 | 0.810 | 0.792 | 0.792 | 0.62 |
-| large | this skill | 11 | 0.874 | 0.857 | 0.857 | 0.55 |
-| polyglot | no skill | 9 | 0.948 | 0.933 | 0.896 | 0.67 |
-| polyglot | this skill | 12 | 0.944 | 0.933 | 0.911 | 0.50 |
+| Fixture | Variant | n | detect | anchor | near-sev | FP/run | decoys/run | findings/run |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| large | no skill | 8 | 0.810 | 0.792 | 0.792 | 2.9 | 0.62 | 19.5 |
+| large | flat review | 11 | 0.874 | 0.857 | 0.857 | 1.8 | 0.55 | 19.8 |
+| large | this skill | 8 | 0.905 | 0.875 | 0.869 | 2.8 | 0.62 | 21.1 |
+| polyglot | no skill | 9 | 0.948 | 0.933 | 0.896 | 1.1 | 0.67 | 15.1 |
+| polyglot | flat review | 12 | 0.944 | 0.933 | 0.911 | 1.3 | 0.50 | 15.3 |
+| polyglot | this skill | 8 | 0.975 | 0.975 | 0.967 | 1.4 | 0.50 | 16.0 |
 
-Against the previous flat-review version at the same sample size, per-area review
-raises anchoring on the dense fixture by 4.8pp (Welch t = 2.47) and detection by
-2.6pp (t = 1.34, 9 findings better and 3 worse), and is never worse on the spread
-fixture. Detection against no skill at all remains inside the noise floor on both
-fixtures: the reproducible contributions are the delivery contract (the graded
-criterion scores 0–3 without the skill and 10 with it), anchoring, and decoy
-resistance.
+Against no skill on the dense fixture, at eight runs each: detection +9.5pp
+(Welch t = 2.73), anchoring +8.3pp (t = 2.81), and a per-finding sign test of
+**9 findings better, 0 worse, 12 tied (p = 0.004)** — with the same false-positive
+rate (2.8 against 2.9) and the same decoy rate (0.62). On the spread fixture
+detection reaches 0.975 against 0.948, which is close to that fixture's ceiling.
+
+The two changes that produced this are per-area review and the written ledger.
+Both act on the same measured failure and neither is a rule: one splits the input
+so an area can be finished, the other removes recollection from the path between
+enumerating a candidate and delivering it. Together they are the only changes in
+this project that moved how many findings a review produces — 19.5 to 21.1 on the
+dense fixture — which is the number to watch when judging any future change.
 
 ## What was tried and did not work
 
