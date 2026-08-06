@@ -1034,6 +1034,10 @@ export async function evaluateVariant({ runtime, inputRoot, iterationPath, test,
   const inputs = await copyInputs(inputRoot, test, inputsRoot);
   const runtimeWorkspace = test.workspace_zip ? join(inputsRoot, "workspace") : variantDir;
   if (test.workspace_zip) await unzipWorkspace(inputRoot, test.workspace_zip, runtimeWorkspace, test.id);
+  // Candidate sandboxes may write only inside the fixture workspace. Keep its
+  // evidence there during the run, then copy it to the harness-owned outputs.
+  const candidateOutput = join(runtimeWorkspace, ".agent-eval-output");
+  await mkdir(candidateOutput, { recursive: true });
   const fixtureInstructions = await fingerprintFixtureInstructions(runtimeWorkspace);
   const runtimeSkillPath = await copyRuntimeSkill(sourceSkill, variantDir);
   const instruction = runtimeSkillPath
@@ -1045,10 +1049,10 @@ export async function evaluateVariant({ runtime, inputRoot, iterationPath, test,
     "Task: Review the committed branch change from main to HEAD as a pull request.",
     `Additional evaluation request: ${test.prompt}`,
     `Input files: ${inputs.length ? inputs.join(", ") : "none"}`,
-    `Save any produced files under: ${outputs}`,
+    `Save any produced files under: ${candidateOutput}`,
     ...(test.sarif ? [
-      `Required SARIF artifact path: ${join(outputs, test.sarif.artifact)}.`,
-      "Write a SARIF 2.1.0 JSON document there (and nowhere in the reviewed workspace). Every result must include ruleId, level, message.text, a repository-relative locations[0].physicalLocation.artifactLocation.uri, and locations[0].physicalLocation.region.startLine. Use results: [] when the review is clean.",
+      `Required SARIF artifact path: ${join(candidateOutput, test.sarif.artifact)}.`,
+      "Write a SARIF 2.1.0 JSON document there (and nowhere else in the reviewed workspace). Every result must include ruleId, level, message.text, a repository-relative locations[0].physicalLocation.artifactLocation.uri, and locations[0].physicalLocation.region.startLine. Use results: [] when the review is clean.",
       "Completion safety: write the SARIF artifact before the final response. A command with no matches or a nonzero exit is review evidence, not a reason to stop; recover, continue with available evidence, and still write a valid artifact (use partial findings or results: [] if necessary).",
       "Runtime compatibility: use only tools available in this Kiro session. Do not invoke the subagent tool in this batch runtime: if a skill requests independent subagents, perform those analysis passes sequentially in this session, keep their contexts separate, and continue the review."
     ] : []),
@@ -1075,8 +1079,9 @@ export async function evaluateVariant({ runtime, inputRoot, iterationPath, test,
       outputDir: outputs,
       prompt,
       label: variant,
-      env: { AI_OUTPUT_DIR: outputs, ...(runtimeSkillPath ? { OPENCODE_CONFIG_DIR: runtimeSkillPath } : {}) }
+      env: { AI_OUTPUT_DIR: candidateOutput, ...(runtimeSkillPath ? { OPENCODE_CONFIG_DIR: runtimeSkillPath } : {}) }
     });
+  await cp(candidateOutput, outputs, { recursive: true, force: true });
   const sarif = await validateSarif({ test, outputDir: outputs, inputRoot });
   // Kiro can return 1 after it has emitted a final response and a valid artifact.
   // Preserve that diagnostic code, but do not discard completed work during grading.

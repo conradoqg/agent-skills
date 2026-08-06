@@ -443,9 +443,10 @@ const totvsEnvWorkspace = join(temp, "totvs-env-workspace");
 const totvsEnvRun = await run("node", ["scripts/evaluate-skills.ts", "--skill", totvsStyleSkill, "--evals", externalEvals, "--workspace", totvsEnvWorkspace, "--codex-bin", fakeCodex, "--grader", "none"]);
 assert.equal(totvsEnvRun.code, 0, totvsEnvRun.stderr);
 const totvsOutputs = join(totvsEnvWorkspace, "iteration-1", "eval-external", "with_skill", "outputs");
+const totvsCandidateOutput = join(totvsEnvWorkspace, "iteration-1", "eval-external", "with_skill", ".agent-eval-output");
 const contextScript = join(totvsEnvWorkspace, "iteration-1", "eval-external", "with_skill", "runtime-skill", "scripts", "collect-pr-context.sh");
 assert.equal((await readFile(join(totvsOutputs, "pr-context", "context.txt"), "utf8")), join(totvsEnvWorkspace, "iteration-1", "eval-external", "with_skill", "runtime-skill"));
-assert.match(await readFile(codexLog, "utf8"), new RegExp(`AI_OUTPUT_DIR=${totvsOutputs} OPENCODE_CONFIG_DIR=${contextScript.replace(/\/scripts\/collect-pr-context\.sh$/, "")}`));
+assert.match(await readFile(codexLog, "utf8"), new RegExp(`AI_OUTPUT_DIR=${totvsCandidateOutput} OPENCODE_CONFIG_DIR=${contextScript.replace(/\/scripts\/collect-pr-context\.sh$/, "")}`));
 
 const fakeSarifCodex = join(temp, "fake-sarif-codex.sh");
 await writeFile(fakeSarifCodex, `#!/bin/sh
