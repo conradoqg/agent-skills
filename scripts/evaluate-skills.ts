@@ -529,7 +529,10 @@ async function runCodex({ config, cwd, skillPath, inputs, outputDir, prompt, lab
   const lastMessage = join(outputDir, "last-message.md");
   const policy = config.runtimeProfile[role];
   const home = await prepareCodexHome(outputDir);
-  const isolatedEnv = { ...(env ?? {}), CODEX_HOME: home };
+  // Codex discovers user skills from $HOME/.agents independently of CODEX_HOME.
+  // Isolate both roots so a same-name installed skill (and its private evals)
+  // cannot leak into an explicitly supplied candidate run.
+  const isolatedEnv = { ...(env ?? {}), HOME: home, CODEX_HOME: home };
   await writeRuntimeEvent(outputDir, "isolated_home_ready", { home: relative(dirname(outputDir), home) });
   await assertCodexMcpDisabled(config, cwd, isolatedEnv);
   await writeRuntimeEvent(outputDir, "mcp_preflight_passed");
@@ -675,7 +678,7 @@ async function gradeWithCodex({ config, variantDir, test, run }) {
   const startedAt = new Date().toISOString();
   const started = performance.now();
   const home = await prepareCodexHome(variantDir);
-  const env = { CODEX_HOME: home };
+  const env = { HOME: home, CODEX_HOME: home };
   await writeRuntimeEvent(variantDir, "grader_isolated_home_ready", { home: relative(variantDir, home) });
   await assertCodexMcpDisabled(config, variantDir, env);
   await writeRuntimeEvent(variantDir, "grader_mcp_preflight_passed");

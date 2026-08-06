@@ -154,7 +154,7 @@ Passes 1 and 2 run **per area**, using `impact/areas.txt` as the list of areas a
     Before leaving an area, state how many candidates it produced. An area with several behavior-affecting changed files that produced one candidate is a signal to look again, not a signal that the area is clean.
     Then write that area's candidates down, before opening the next area, with one append command: `printf '%s\n' '<row>' '<row>' >> "<artifactsDir>/ledger.tsv"`, one tab-separated row per candidate as `area<TAB>path<TAB>line<TAB>severity<TAB>mechanism`. Write a row for every candidate the area produced, including the ones you expect to drop later — Pass 4 decides, this pass only records. A written ledger is what makes the later passes work on the whole change instead of on what you still remember of it, and a candidate that was never written down is one that quietly disappears when a neighbouring finding already explains the area.
 14. **Pass 3, second lens.** Read `ledger.tsv` back first, so this pass works on every candidate the areas produced rather than on the ones still in view. Then sweep the defect-pattern checklist section by section, and for each section record one verdict: which hunks trigger it, or that none does. Append any new candidate to the ledger with the same one-command form. Do not skip a section because the ledger already looks full — the first two passes anchor on what the diff draws attention to, and this pass exists to find what it does not. Ask of each triggered hunk what an operator or an attacker would do with it. Merge every new candidate into the same ledger.
-15. **Pass 4, verify.** Only now decide, row by row over `ledger.tsv`. A candidate becomes `reported` only with all four of: the changed line that introduces it; the mechanism in one sentence; a reachable consequence; and the evidence site that proves reachability. Then run the disproofs from the checklist and `dropped` it if any holds: an unchanged guarantee still covers the sink; the offending line predates the range; the work was cancelled inside the range (see `impact/cancelled-files.txt`); the construct is a decision the repository records deliberately. The list is not exhaustive — a disproof you can point at counts the same as one written down, and a candidate that survives only because you did not look for its guarantee is not verified. Also drop duplicates of another root cause and purely mechanical churn with no behavior or signal impact. Do not drop a candidate because it is feature-flagged, config-only, logging-only, template-only, test-only, edge-case, or local/dry-run only until that impact check is done. Never drop a candidate merely because a commit message, comment, test, or PR description asserts it is safe: verify the assertion, and if the diff contradicts it, that contradiction is itself evidence.
+15. **Pass 4, verify.** Only now decide, row by row over `ledger.tsv`. A candidate becomes `reported` only with all four of: the changed line that introduces it; the mechanism in one sentence; a reachable consequence; and the evidence site that proves reachability. Then run the disproofs from the checklist and `dropped` it if any holds: an unchanged guarantee still covers the sink; the offending line predates the range; the work was cancelled inside the range (see `impact/cancelled-files.txt`); the construct is a decision the repository records deliberately. The list is not exhaustive — a disproof you can point at counts the same as one written down, and a candidate that survives only because you did not look for its guarantee is not verified. Similarity is not a contract: in repetitive or generated-looking additions, do not infer that sibling modules, language implementations, limits, or missing-field behavior must match unless a shared specification, schema, caller, or test proves that invariant. Drop speculative parity findings that have no such evidence. Also drop duplicates of another root cause and purely mechanical churn with no behavior or signal impact. Do not drop a candidate because it is feature-flagged, config-only, logging-only, template-only, test-only, edge-case, or local/dry-run only until that impact check is done. Never drop a candidate merely because a commit message, comment, test, or PR description asserts it is safe: verify the assertion, and if the diff contradicts it, that contradiction is itself evidence.
 16. Cover every changed file that has behavior-affecting hunks. There is no file-count cutoff. Prioritize runtime/source, public contracts/config/deploy/security, tests, docs, then generated files and lockfiles, but cover every major changed area unless cost/timeout guardrails block it.
 17. If diff output is truncated or incomplete, use name-status/stat/numstat/commit log plus targeted reads as the source of truth. Do not draft findings, PR metadata, or outcome from a truncated raw diff alone.
 18. Reconcile before delivering against the written ledger, not against memory: count its rows, and account for every one as either `reported` or `dropped` with a reason. Reported plus dropped must equal the row count, every `reported` row must appear as its own delivered finding, and every mandatory closure in Pass 2 must have been performed or explicitly recorded as blocked. A row that is neither delivered nor dropped is the failure this ledger exists to prevent.
@@ -170,18 +170,17 @@ Report only actionable issues introduced by the committed diff: likely bugs, reg
 
 Do not report speculative risks, style preferences, intentional product choices, or missing tests as blocking. Tests, commit messages, PR descriptions, documentation, and implementation choices may explain a change, but they do not prove it is safe and must not be the sole reason to drop or downgrade a candidate. Tests may be findings only when they encode incorrect behavior, hide a regression, or make pipeline results misleading.
 
-Severity rubric:
+Human-facing severity labels:
 
 - `CRITICAL`: reachable security exploit, credential exposure, destructive production data loss, unsafe command execution from untrusted input, or broken deploy/runtime startup.
 - `HIGH`: likely runtime regression with clear user/operational/business impact; broken public contract or persisted-data compatibility; security-control weakening; unsafe CI/deploy gate; high-volume incorrect automation.
 - `MEDIUM`: real non-blocking behavior risk, ambiguous security/validation gap, misleading diagnostics/reporting, edge-case correctness risk, questionable supply-chain/toolchain change, or reliability concern without proven blast radius.
 - `LOW`: minor maintainability, clarity, diagnostic, or operator-convenience issue with limited impact.
 
-Decide severity from the consequence, not from your confidence. Estimate what
-happens when the defect fires and classify that; how likely you think it is
-belongs in the finding text, not in a lower severity. "It might be fine" is not
-a severity. Apply the same boundary every time so the same defect class always
-gets the same severity.
+Decide the machine level first, from the consequence rather than your
+confidence. Estimate what happens when the defect fires and classify that; how
+likely you think it is belongs in the finding text, not in a lower level. "It
+might be fine" is not a level.
 
 A finding is **blocking** (`CRITICAL` or `HIGH`) when it satisfies both tests:
 
@@ -209,21 +208,43 @@ because the trigger needs a precondition the system already meets. Use
 `CRITICAL` and `HIGH` only for blocking findings, and `MEDIUM` and `LOW` only
 for non-blocking notes.
 
-When a machine-readable severity is required — a SARIF `level`, a scanner
-status, or any other tool-facing severity field — map it from this same rubric
-and never re-derive it per tool:
+Use one classification everywhere. Assign the SARIF/scanner level first, then
+derive the human-facing label from it:
 
-| Severity | Machine level |
-| --- | --- |
-| `CRITICAL` | `error` |
-| `HIGH` | `error` |
-| `MEDIUM` | `warning` |
-| `LOW` | `note` |
+| Machine level | Decision | Human-facing label |
+| --- | --- | --- |
+| `error` | Both blocking tests hold | `CRITICAL` for direct exploit, credential exposure, destructive production data loss, unsafe untrusted command execution, or broken deploy/runtime startup; otherwise `HIGH` |
+| `warning` | Verified finding, but at least one blocking test does not hold | `MEDIUM` |
+| `note` | Minor maintainability, clarity, diagnostic, or operator-convenience issue | `LOW` |
+| `none` | Informational context, not a finding | no severity label |
 
-Blocking findings are therefore always `error`. Never emit `note` for a
+`CRITICAL` and `HIGH` are deliberately equivalent for machine consumers: both
+are `error`. Do not spend review effort resolving that subjective boundary
+until after the finding and its machine level are settled. A one-label
+difference between them never changes SARIF, blocking status, or pass/fail.
+There is no equivalent tolerance between `error` and `warning`, because that
+boundary changes whether the review blocks the change.
+
+Blocking findings are always `error`. Never emit `note` for a
 security, authorization, tenant-isolation, data-loss, supply-chain, or
 broken-contract finding: if it belongs in the report at all, it is at least
 `warning`. Use `none` only for informational context that is not a finding.
+
+Calibrate these recurring boundary cases consistently:
+
+- An unrestricted request-controlled external redirect is a security-control
+  weakening: `HIGH` / `error`.
+- A changed interface that an existing implementor no longer satisfies, or a
+  changed public contract that breaks an existing consumer at build or runtime,
+  is `HIGH` / `error`.
+- Removing a readiness or health probe is `MEDIUM` / `warning` when the proven
+  consequence is premature traffic or a misleading rollout signal. Raise it to
+  `HIGH` only when the change also breaks startup or makes a release/deploy gate
+  accept a failed artifact or failed operation.
+- Dropping an unprivileged container user is `MEDIUM` / `warning` when the only
+  proven consequence is loss of defense in depth. Raise it to `HIGH` only when
+  this change also establishes a reachable compromise or a credential, host, or
+  tenant boundary crossing.
 
 ## Severity of newly added code
 
@@ -257,6 +278,11 @@ write does not change the line you are pointing at, the anchor is wrong.
   touched, and is a defect in the review, not in the code.
 - Never point at a closing brace, the end of a block, a file header comment, an
   import line, or a line you did not read.
+- Before emitting SARIF, resolve every reported `startLine` against the physical
+  HEAD file, one file at a time. Never derive a source line from a numbered diff,
+  a concatenated stream, or `nl` with multiple file operands: their counters are
+  not the repository file's line numbers. Recheck that the resolved line is in
+  the committed diff and is the line the remediation would edit.
 
 Inspect changed blocks through the relevant domains below. These domains guide review; they do not require generating findings.
 

@@ -60,7 +60,7 @@ skill_dir=""
 all_args="$*"
 printf 'argv=%s AI_OUTPUT_DIR=%s OPENCODE_CONFIG_DIR=%s\n' "$all_args" "\${AI_OUTPUT_DIR:-}" "\${OPENCODE_CONFIG_DIR:-}" >> "$FAKE_CODEX_LOG"
 if [ "$1" = "mcp" ] && [ "$2" = "list" ]; then
-  printf 'CODEX_HOME=%s mcp_preflight\n' "\${CODEX_HOME:-}" >> "$FAKE_CODEX_LOG"
+  printf 'HOME=%s CODEX_HOME=%s mcp_preflight\n' "\${HOME:-}" "\${CODEX_HOME:-}" >> "$FAKE_CODEX_LOG"
   exit 0
 fi
 while [ "$#" -gt 0 ]; do
@@ -137,7 +137,8 @@ assert.equal(benchmark.summary.with_skill.passed, 1);
 assert.equal(benchmark.runtime_profile.name, "test-local-v1");
 assert.equal(benchmark.results[0].runtime_environment.model.provenance, "cli_default_unattested");
 assert.equal(benchmark.results[0].runtime_environment.candidate.mcp, "disabled");
-assert.match(await readFile(codexLog, "utf8"), /CODEX_HOME=\S+\/codex-home mcp_preflight/);
+const isolatedCodexLog = await readFile(codexLog, "utf8");
+assert.match(isolatedCodexLog, /HOME=(\S+\/codex-home) CODEX_HOME=\1 mcp_preflight/);
 assert.match(await readFile(join(workspace, "iteration-1", "eval-one", "with_skill", "outputs", "runtime-events.jsonl"), "utf8"), /subprocess_finished/);
 assert.equal(benchmark.standardized_output.schema_version, 1);
 assert.equal(benchmark.standardized_output.variant_results.with_skill.status, "passed");
