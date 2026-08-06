@@ -7,11 +7,12 @@
  * Generated evidence always stays outside the skill package.
  */
 
-import { cp, mkdir, readFile, readdir, rm, stat, symlink, writeFile } from "node:fs/promises";
+import { appendFile, cp, mkdir, readFile, readdir, rm, stat, symlink, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { performance } from "node:perf_hooks";
 import { spawn } from "node:child_process";
+import { createHash } from "node:crypto";
 
 const ROOT = resolve(import.meta.dirname, "..");
 const DEFAULT_TIMEOUT_MS = 300_000;
@@ -131,8 +132,8 @@ async function loadManifest(skillPath, manifestOverride = null) {
   } catch (error) {
     throw new Error(`Cannot read ${manifestPath}: ${error.message}`);
   }
-  if (!manifest || typeof manifest !== "object" || typeof manifest.skill_name !== "string" || !Array.isArray(manifest.evals)) {
-    throw new Error(`${manifestPath} must contain skill_name and evals[]`);
+  if (!manifest || typeof manifest !== "object" || typeof manifest.skill_name !== "string" || !Array.isArray(manifest.evals) || !safeProfileReference(manifest.runtime_profile)) {
+    throw new Error(`${manifestPath} must contain skill_name, runtime_profile, and evals[]`);
   }
   if (!manifestOverride && manifest.skill_name !== basename(skillPath)) {
     throw new Error(`${manifestPath}: skill_name must match the skill directory`);
@@ -160,7 +161,31 @@ async function loadManifest(skillPath, manifestOverride = null) {
     }
     if (test.conversation !== undefined) test.conversation = normalizeConversation(test.conversation, manifestPath, test.id);
   }
-  return manifest;
+  return { ...manifest, runtime_profile: resolve(dirname(manifestPath), manifest.runtime_profile), manifest_path: manifestPath };
+}
+
+function safeProfileReference(value) {
+  return typeof value === "string" && value.length > 0 && !isAbsolute(value) && !/^[A-Za-z]:[\\/]/.test(value);
+}
+
+async function loadRuntimeProfile(manifest) {
+  const path = manifest.runtime_profile;
+  if (!(await fileExists(path))) throw new Error(`${manifest.manifest_path}: runtime_profile does not exist: ${path}`);
+  let profile;
+  try { profile = JSON.parse(await readFile(path, "utf8")); } catch (error) { throw new Error(`${path}: runtime profile is not valid JSON: ${error.message}`); }
+  if (!profile || typeof profile !== "object" || Array.isArray(profile) || profile.version !== 1 || typeof profile.name !== "string" || profile.name.length === 0 ||
+    profile.fixture_instructions !== "allow-and-fingerprint" || !profile.candidate || !profile.grader) {
+    throw new Error(`${path}: runtime profile needs version 1, name, fixture_instructions=allow-and-fingerprint, candidate, and grader`);
+  }
+  for (const [role, policy] of Object.entries({ candidate: profile.candidate, grader: profile.grader })) {
+    if (!policy || typeof policy !== "object" || policy.mcp !== "disabled" || policy.network !== "disabled" || !["workspace-write", "read-only"].includes(policy.filesystem)) {
+      throw new Error(`${path}: ${role} must declare mcp/network disabled and filesystem workspace-write or read-only`);
+    }
+  }
+  if (profile.candidate.filesystem !== "workspace-write" || profile.grader.filesystem !== "read-only") {
+    throw new Error(`${path}: candidate must be workspace-write and grader must be read-only`);
+  }
+  return { ...profile, path, sha256: createHash("sha256").update(await readFile(path)).digest("hex") };
 }
 
 function selectEvals(manifest, requestedIds = []) {
@@ -301,8 +326,18 @@ async function copyRuntimeSkill(sourceSkill, variantDir) {
   return target;
 }
 
+async function fingerprintFixtureInstructions(workspace) {
+  const candidates = [join(workspace, "AGENTS.md"), join(workspace, ".codex", "config.toml")];
+  const found = [];
+  for (const path of candidates) {
+    if (await fileExists(path)) found.push({ path: relative(workspace, path), sha256: createHash("sha256").update(await readFile(path)).digest("hex") });
+  }
+  return found;
+}
+
 function spawnProcess(command, args, options) {
   return new Promise((resolvePromise) => {
+    const startedAt = new Date().toISOString();
     const child = spawn(command, args, { cwd: options.cwd, env: { ...process.env, ...(options.env ?? {}) }, stdio: ["ignore", "pipe", "pipe"] });
     let stdout = "";
     let stderr = "";
@@ -315,13 +350,18 @@ function spawnProcess(command, args, options) {
     child.stderr.on("data", (chunk) => { stderr += chunk; });
     child.on("error", (error) => {
       clearTimeout(timer);
-      resolvePromise({ code: null, signal: null, stdout, stderr: `${stderr}${error.message}`, timedOut });
+      resolvePromise({ code: null, signal: null, stdout, stderr: `${stderr}${error.message}`, timedOut, pid: child.pid ?? null, started_at: startedAt, ended_at: new Date().toISOString(), spawn_error: error.message });
     });
     child.on("close", (code, signal) => {
       clearTimeout(timer);
-      resolvePromise({ code, signal: signal ?? null, stdout, stderr, timedOut });
+      resolvePromise({ code, signal: signal ?? null, stdout, stderr, timedOut, pid: child.pid ?? null, started_at: startedAt, ended_at: new Date().toISOString() });
     });
   });
+}
+
+async function writeRuntimeEvent(outputDir, phase, details = {}) {
+  await mkdir(outputDir, { recursive: true });
+  await appendFile(join(outputDir, "runtime-events.jsonl"), `${JSON.stringify({ at: new Date().toISOString(), phase, ...details })}\n`);
 }
 
 function asTokenCount(value) {
@@ -467,10 +507,33 @@ async function validateSarif({ test, outputDir, inputRoot }) {
   };
 }
 
-async function runCodex({ config, cwd, skillPath, inputs, outputDir, prompt, label, outputSchema = null, env }) {
+async function prepareCodexHome(outputDir) {
+  const home = join(dirname(outputDir), "codex-home");
+  await mkdir(home, { recursive: true });
+  // Codex authentication is intentionally the only state carried into the clean home.
+  const sourceHome = process.env.CODEX_HOME ?? join(homedir(), ".codex");
+  const auth = join(sourceHome, "auth.json");
+  if (await fileExists(auth)) await symlink(auth, join(home, "auth.json")).catch(() => {});
+  return home;
+}
+
+async function assertCodexMcpDisabled(config, cwd, env) {
+  const result = await spawnProcess(config.codexBin, ["mcp", "list"], { cwd, timeoutMs: config.timeoutMs, env });
+  if (result.code !== 0) throw new Error(`Codex MCP preflight failed: ${result.stderr.trim() || `exit ${result.code}`}`);
+  if (/\benabled\b/i.test(result.stdout)) throw new Error("Codex MCP preflight found an enabled MCP server in an isolated evaluation run");
+}
+
+async function runCodex({ config, cwd, skillPath, inputs, outputDir, prompt, label, outputSchema = null, env, role = "candidate" }) {
   await mkdir(outputDir, { recursive: true });
+  await writeRuntimeEvent(outputDir, "run_started", { runtime: "codex", role, cwd, sandbox: config.runtimeProfile[role].filesystem });
   const lastMessage = join(outputDir, "last-message.md");
-  const args = ["exec", "--json", "--ephemeral", "--ignore-user-config", "--skip-git-repo-check", "--sandbox", "workspace-write", "--color", "never", "-C", cwd];
+  const policy = config.runtimeProfile[role];
+  const home = await prepareCodexHome(outputDir);
+  const isolatedEnv = { ...(env ?? {}), CODEX_HOME: home };
+  await writeRuntimeEvent(outputDir, "isolated_home_ready", { home: relative(dirname(outputDir), home) });
+  await assertCodexMcpDisabled(config, cwd, isolatedEnv);
+  await writeRuntimeEvent(outputDir, "mcp_preflight_passed");
+  const args = ["exec", "--json", "--ephemeral", "--ignore-user-config", "--disable", "mcp_2026_07_28", "--disable", "enable_mcp_apps", "--skip-git-repo-check", "--sandbox", policy.filesystem, "--color", "never", "-C", cwd];
   if (skillPath) args.push("--add-dir", skillPath);
   if (inputs.length > 0) args.push("--add-dir", dirname(inputs[0]));
   if (config.model) args.push("--model", config.model);
@@ -480,16 +543,18 @@ async function runCodex({ config, cwd, skillPath, inputs, outputDir, prompt, lab
     args.push("--output-schema", schemaPath);
   }
   args.push("--output-last-message", lastMessage, prompt);
+  await writeRuntimeEvent(outputDir, "subprocess_starting", { executable: config.codexBin, argument_count: args.length });
   const startedAt = new Date().toISOString();
   const started = performance.now();
-  const processResult = await spawnProcess(config.codexBin, args, { cwd, timeoutMs: config.timeoutMs, env });
+  const processResult = await spawnProcess(config.codexBin, args, { cwd, timeoutMs: config.timeoutMs, env: isolatedEnv });
+  await writeRuntimeEvent(outputDir, "subprocess_finished", { code: processResult.code, signal: processResult.signal, timed_out: processResult.timedOut, pid: processResult.pid, spawn_error: processResult.spawn_error ?? null });
   const durationMs = Math.round(performance.now() - started);
   await writeFile(join(outputDir, "stdout.log"), processResult.stdout);
   await writeFile(join(outputDir, "stderr.log"), processResult.stderr);
   const output = (await fileExists(lastMessage)) ? await readFile(lastMessage, "utf8") : "";
   const timing = { started_at: startedAt, duration_ms: durationMs, ...usageFromJsonl(processResult.stdout) };
   await writeFile(join(outputDir, "timing.json"), JSON.stringify(timing, null, 2));
-  return { label, output, timing, code: processResult.code, timedOut: processResult.timedOut, stderr: processResult.stderr };
+  return { label, output, timing, code: processResult.code, timedOut: processResult.timedOut, stderr: processResult.stderr, environment: { home: relative(dirname(outputDir), home), mcp: "disabled", network: policy.network, filesystem: policy.filesystem } };
 }
 
 function unavailableTokenUsage() {
@@ -507,11 +572,14 @@ function unavailableTokenUsage() {
 async function prepareKiroHome(config, baseDir) {
   // A clean benchmark harness: the isolated HOME exposes only the supplied agent.
   // Global skills, steering documents, and mcp.json stay out of every candidate run.
-  const agentFile = resolve(ROOT, config.kiroAgentFile);
-  if (!(await fileExists(agentFile))) throw new Error(`Cannot find --kiro-agent-file: ${agentFile}`);
-  let agent;
-  try { agent = JSON.parse(await readFile(agentFile, "utf8")); } catch (error) { throw new Error(`--kiro-agent-file is not valid JSON: ${error.message}`); }
-  if (typeof agent?.name !== "string" || agent.name.trim().length === 0) throw new Error(`--kiro-agent-file needs a non-empty name: ${agentFile}`);
+  const agentFile = config.kiroAgentFile ? resolve(ROOT, config.kiroAgentFile) : null;
+  let agent = { name: "kiro-isolated", mcpServers: {}, tools: ["*"], allowedTools: ["*"], resources: [], includeMcpJson: false };
+  if (agentFile) {
+    if (!(await fileExists(agentFile))) throw new Error(`Cannot find --kiro-agent-file: ${agentFile}`);
+    try { agent = JSON.parse(await readFile(agentFile, "utf8")); } catch (error) { throw new Error(`--kiro-agent-file is not valid JSON: ${error.message}`); }
+  }
+  if (typeof agent?.name !== "string" || agent.name.trim().length === 0) throw new Error(`Kiro isolated agent needs a non-empty name${agentFile ? `: ${agentFile}` : ""}`);
+  agent = { ...agent, mcpServers: {}, includeMcpJson: false, resources: [] };
   const home = join(baseDir, "kiro-home");
   await mkdir(join(home, ".kiro", "agents"), { recursive: true });
   await mkdir(join(home, ".kiro", "settings"), { recursive: true });
@@ -525,20 +593,24 @@ async function prepareKiroHome(config, baseDir) {
   return { home, agentName: agent.name };
 }
 
-async function runKiro({ config, cwd, skillPath, inputs, outputDir, prompt, label, env }) {
+async function runKiro({ config, cwd, skillPath, inputs, outputDir, prompt, label, env, role = "candidate" }) {
   await mkdir(outputDir, { recursive: true });
-  const isolated = config.kiroAgentFile ? await prepareKiroHome(config, dirname(outputDir)) : null;
-  const agentName = isolated?.agentName ?? config.kiroAgent;
+  await writeRuntimeEvent(outputDir, "run_started", { runtime: "kiro", role, cwd });
+  const isolated = await prepareKiroHome(config, dirname(outputDir));
+  await writeRuntimeEvent(outputDir, "isolated_home_ready", { home: relative(dirname(outputDir), isolated.home) });
+  const agentName = isolated.agentName;
   const args = ["chat", "--no-interactive", "--wrap", "never", "--model", config.kiroModel];
   if (agentName) args.push("--agent", agentName);
   if (config.kiroEffort) args.push("--effort", config.kiroEffort);
   if (config.kiroTrustAllTools) args.push("--trust-all-tools");
   else args.push(`--trust-tools=${config.kiroTrustTools}`);
   args.push(prompt);
+  await writeRuntimeEvent(outputDir, "subprocess_starting", { executable: config.kiroBin, argument_count: args.length });
   const startedAt = new Date().toISOString();
   const started = performance.now();
   const runEnv = isolated ? { ...(env ?? {}), HOME: isolated.home } : env;
   const processResult = await spawnProcess(config.kiroBin, args, { cwd, timeoutMs: config.timeoutMs, env: runEnv });
+  await writeRuntimeEvent(outputDir, "subprocess_finished", { code: processResult.code, signal: processResult.signal, timed_out: processResult.timedOut, pid: processResult.pid, spawn_error: processResult.spawn_error ?? null });
   const timing = {
     started_at: startedAt,
     duration_ms: Math.round(performance.now() - started),
@@ -550,7 +622,8 @@ async function runKiro({ config, cwd, skillPath, inputs, outputDir, prompt, labe
   await writeFile(join(outputDir, "stdout.log"), processResult.stdout);
   await writeFile(join(outputDir, "stderr.log"), processResult.stderr);
   await writeFile(join(outputDir, "timing.json"), JSON.stringify(timing, null, 2));
-  return { label, output: processResult.stdout, timing, code: processResult.code, timedOut: processResult.timedOut, stderr: processResult.stderr };
+  const policy = config.runtimeProfile[role];
+  return { label, output: processResult.stdout, timing, code: processResult.code, timedOut: processResult.timedOut, stderr: processResult.stderr, environment: { home: relative(dirname(outputDir), isolated.home), mcp: "disabled", network: policy.network, filesystem: policy.filesystem } };
 }
 
 function graderPrompt(test, run) {
@@ -599,12 +672,19 @@ async function gradeWithCodex({ config, variantDir, test, run }) {
   }, null, 2));
   const gradeFile = join(variantDir, "grader-response.json");
   const prompt = graderPrompt(test, run);
-  const args = ["exec", "--json", "--ephemeral", "--ignore-user-config", "--skip-git-repo-check", "--sandbox", "read-only", "--color", "never", "-C", variantDir];
-  if (config.model) args.push("--model", config.model);
-  args.push("--output-schema", schemaPath, "--output-last-message", gradeFile, prompt);
   const startedAt = new Date().toISOString();
   const started = performance.now();
-  const result = await spawnProcess(config.codexBin, args, { cwd: variantDir, timeoutMs: config.timeoutMs });
+  const home = await prepareCodexHome(variantDir);
+  const env = { CODEX_HOME: home };
+  await writeRuntimeEvent(variantDir, "grader_isolated_home_ready", { home: relative(variantDir, home) });
+  await assertCodexMcpDisabled(config, variantDir, env);
+  await writeRuntimeEvent(variantDir, "grader_mcp_preflight_passed");
+  const graderArgs = ["exec", "--json", "--ephemeral", "--ignore-user-config", "--disable", "mcp_2026_07_28", "--disable", "enable_mcp_apps", "--skip-git-repo-check", "--sandbox", config.runtimeProfile.grader.filesystem, "--color", "never", "-C", variantDir];
+  if (config.model) graderArgs.push("--model", config.model);
+  graderArgs.push("--output-schema", schemaPath, "--output-last-message", gradeFile, prompt);
+  await writeRuntimeEvent(variantDir, "grader_subprocess_starting", { executable: config.codexBin, argument_count: graderArgs.length });
+  const result = await spawnProcess(config.codexBin, graderArgs, { cwd: variantDir, timeoutMs: config.timeoutMs, env });
+  await writeRuntimeEvent(variantDir, "grader_subprocess_finished", { code: result.code, signal: result.signal, timed_out: result.timedOut, pid: result.pid, spawn_error: result.spawn_error ?? null });
   const timing = { started_at: startedAt, duration_ms: Math.round(performance.now() - started), ...usageFromJsonl(result.stdout) };
   await writeFile(join(variantDir, "grader-stdout.log"), result.stdout);
   await writeFile(join(variantDir, "grader-stderr.log"), result.stderr);
@@ -645,7 +725,8 @@ async function gradeWithKiro({ config, variantDir, test, run }) {
       `Grading context: ${graderContext}`,
       `Response path: ${join(graderOutput, "grader-response.json")}`
     ].join("\n"),
-    label: "grader"
+    label: "grader",
+    role: "grader"
   });
   await writeFile(join(variantDir, "grader-stdout.log"), grade.output);
   await writeFile(join(variantDir, "grader-stderr.log"), grade.stderr);
@@ -680,6 +761,8 @@ function createRuntime(config) {
   if (config.runtime === "codex") {
     return {
       name: "codex",
+      profile: config.runtimeProfile,
+      model: config.model ?? null,
       run: (options) => runCodex({ config, ...options }),
       grade: (options) => gradeWithCodex({ config, ...options })
     };
@@ -687,6 +770,8 @@ function createRuntime(config) {
   if (config.runtime === "kiro") {
     return {
       name: "kiro",
+      profile: config.runtimeProfile,
+      model: config.kiroModel,
       run: (options) => runKiro({ config, ...options }),
       grade: (options) => gradeWithKiro({ config, ...options })
     };
@@ -730,6 +815,64 @@ function summarizeScores(runs) {
     thresholds_met: grades.filter((grade) => grade.passed).length,
     thresholds_total: grades.length
   };
+}
+
+function summarizeSarif(runs) {
+  const sarifRuns = runs.filter((run) => run.sarif);
+  const expected = sarifRuns.reduce((sum, run) => sum + (run.sarif.expected_count ?? 0), 0);
+  const matched = sarifRuns.reduce((sum, run) => sum + (run.sarif.matched_count ?? 0), 0);
+  return {
+    evaluated_runs: sarifRuns.length,
+    passed_runs: sarifRuns.filter((run) => run.sarif.passed).length,
+    recall: expected === 0 ? (sarifRuns.length === 0 ? null : 1) : matched / expected,
+    false_positives: sarifRuns.reduce((sum, run) => sum + (run.sarif.metrics?.false_positives ?? 0), 0)
+  };
+}
+
+function standardVariantResult(variant, runs) {
+  const environment = runs[0]?.runtime_environment ?? null;
+  const score = summarizeScores(runs);
+  const taskTokens = sumTokenUsage(runs.map((run) => run.timing)).total_tokens;
+  const graderTokens = sumTokenUsage(runs.map((run) => run.grader_timing)).total_tokens;
+  return {
+    variant,
+    status: runs.length > 0 && runs.every((run) => run.passed) ? "passed" : "failed",
+    runtime: environment ? { name: runs[0].runtime, model: environment.model } : { name: runs[0]?.runtime ?? null, model: null },
+    profile: environment?.profile ?? null,
+    metrics: {
+      passed: runs.filter((run) => run.passed).length,
+      total: runs.length,
+      pass_rate: runs.length === 0 ? null : runs.filter((run) => run.passed).length / runs.length,
+      average_score: score.average_score,
+      sarif: summarizeSarif(runs),
+      tokens: { task: taskTokens, grader: graderTokens },
+      duration_ms: runs.reduce((sum, run) => sum + (run.timing?.duration_ms ?? 0), 0)
+    },
+    artifacts: runs.map((run) => ({ eval_id: run.eval_id, repetition: run.repetition, ...run.artifacts }))
+  };
+}
+
+function delta(current, baseline) {
+  return current === null || baseline === null ? null : current - baseline;
+}
+
+function standardizedOutput(variants, results) {
+  const variant_results = Object.fromEntries(variants.map(([variant]) => [variant, standardVariantResult(variant, results.filter((result) => result.variant === variant))]));
+  const baseline_variant = variant_results.without_skill ? "without_skill" : (variant_results.old_skill ? "old_skill" : null);
+  const baseline = baseline_variant ? variant_results[baseline_variant].metrics : null;
+  const comparison = {
+    baseline_variant,
+    variants: baseline ? Object.fromEntries(Object.entries(variant_results).filter(([variant]) => variant !== baseline_variant).map(([variant, summary]) => [variant, {
+      against: baseline_variant,
+      pass_rate: delta(summary.metrics.pass_rate, baseline.pass_rate),
+      average_score: delta(summary.metrics.average_score, baseline.average_score),
+      sarif_recall: delta(summary.metrics.sarif.recall, baseline.sarif.recall),
+      sarif_false_positives: delta(summary.metrics.sarif.false_positives, baseline.sarif.false_positives),
+      task_tokens: delta(summary.metrics.tokens.task, baseline.tokens.task),
+      duration_ms: delta(summary.metrics.duration_ms, baseline.duration_ms)
+    }])) : {}
+  };
+  return { schema_version: 1, variant_results, comparison };
 }
 
 function structuredSchema(properties, required) {
@@ -891,6 +1034,7 @@ export async function evaluateVariant({ runtime, inputRoot, iterationPath, test,
   const inputs = await copyInputs(inputRoot, test, inputsRoot);
   const runtimeWorkspace = test.workspace_zip ? join(inputsRoot, "workspace") : variantDir;
   if (test.workspace_zip) await unzipWorkspace(inputRoot, test.workspace_zip, runtimeWorkspace, test.id);
+  const fixtureInstructions = await fingerprintFixtureInstructions(runtimeWorkspace);
   const runtimeSkillPath = await copyRuntimeSkill(sourceSkill, variantDir);
   const instruction = runtimeSkillPath
     ? `Read and follow the Agent Skill at ${join(runtimeSkillPath, "SKILL.md")} before completing the task.`
@@ -944,11 +1088,23 @@ export async function evaluateVariant({ runtime, inputRoot, iterationPath, test,
     variant,
     repetition,
     runtime: runtime.name,
+    runtime_environment: {
+      profile: { name: runtime.profile.name, version: runtime.profile.version, sha256: runtime.profile.sha256 },
+      model: runtime.model ? { requested: runtime.model, effective: null, provenance: "requested_not_attested" } : { requested: null, effective: null, provenance: "cli_default_unattested" },
+      fixture_instructions: fixtureInstructions,
+      candidate: run.environment ?? null,
+      grader: { mcp: "disabled", network: runtime.profile.grader.network, filesystem: runtime.profile.grader.filesystem }
+    },
     code: run.code,
     timed_out: run.timedOut,
     timing: run.timing,
     ...(recoveredKiroExit ? { recovered_runtime_exit: true } : {}),
     grader_timing: graded.timing,
+    artifacts: {
+      output_dir: relative(iterationPath, outputs),
+      candidate_output: relative(iterationPath, join(outputs, runtime.name === "codex" ? "last-message.md" : "stdout.log")),
+      ...(sarif?.artifact ? { sarif: relative(iterationPath, join(outputs, test.sarif.artifact)) } : {})
+    },
     passed: candidatePassed(gradeRun, graded.results),
     grading: graded.results,
     ...(sarif ? { sarif } : {}),
@@ -990,6 +1146,7 @@ export async function writeFinalReport(iterationPath, benchmark) {
     benchmark.kind === "benchmark" ? "# Skill competition report" : "# Skill evaluation report",
     "",
     `Generated: ${benchmark.generated_at}`,
+    `Runtime profile: ${benchmark.runtime_profile ? `${benchmark.runtime_profile.name} v${benchmark.runtime_profile.version} (${benchmark.runtime_profile.sha256.slice(0, 12)})` : "not recorded"}`,
     "",
     `Transcript bundle: [index](${benchmark.transcript_bundle ?? "transcripts/index.md"})`,
     "",
@@ -1011,6 +1168,11 @@ export async function writeFinalReport(iterationPath, benchmark) {
     const discovery = result.conversation?.discovery;
     const sarifMetrics = result.sarif ? `recall ${result.sarif.metrics?.recall ?? "n/a"}; false positives ${result.sarif.metrics?.false_positives ?? "n/a"}${result.sarif.gate_failures?.length ? `; failures: ${result.sarif.gate_failures.join(", ")}` : ""}` : "n/a";
     lines.push(`| ${result.eval_id} | ${result.variant} | ${result.passed ? "yes" : "no"} | ${result.sarif ? (result.sarif.passed ? "matched" : "failed") : "n/a"} | ${sarifMetrics.replace(/\|/g, "\\|")} | ${result.sarif?.evidence?.replace(/\|/g, "\\|") ?? "n/a"} | ${discovery ? `${discovery.revealed_count}/${discovery.available_count}` : "n/a"} | ${result.conversation?.candidate_turns ?? "n/a"} | ${result.grading.map((grade) => `${grade.criterion}: ${grade.score}`).join("; ")} |`);
+  }
+  lines.push("", "## Runtime environment", "", "| Scenario | Variant | Requested model | Model provenance | Fixture instructions |", "| --- | --- | --- | --- | --- |");
+  for (const result of benchmark.results) {
+    const environment = result.runtime_environment;
+    lines.push(`| ${result.eval_id} | ${result.variant} | ${environment?.model?.requested ?? "CLI default"} | ${environment?.model?.provenance ?? "n/a"} | ${(environment?.fixture_instructions ?? []).map((item) => `${item.path}@${item.sha256.slice(0, 12)}`).join(", ") || "none"} |`);
   }
   await writeFile(join(iterationPath, "report.md"), `${lines.join("\n")}\n`);
   return "report.md";
@@ -1064,7 +1226,8 @@ export async function main() {
     throw new Error(`--previous is not a skill directory: ${config.previous}`);
   }
   const manifest = selectEvals(await loadManifest(skillPath, config.evals), config.evalIds);
-  const runtime = createRuntime(config);
+  const runtimeProfile = await loadRuntimeProfile(manifest);
+  const runtime = createRuntime({ ...config, runtimeProfile });
   const workspace = config.workspace ? resolve(ROOT, config.workspace) : join(ROOT, ".skill-evals", basename(skillPath));
   const iteration = config.iteration ?? await nextIteration(workspace);
   const iterationPath = join(workspace, `iteration-${iteration}`);
@@ -1112,6 +1275,7 @@ export async function main() {
   const benchmark = {
     kind: "evaluation",
     skill_name: manifest.skill_name,
+    runtime_profile: { name: runtimeProfile.name, version: runtimeProfile.version, sha256: runtimeProfile.sha256 },
     eval_suite: config.evals ? resolve(ROOT, config.evals) : join(skillPath, "evals", "evals.json"),
     iteration,
     generated_at: new Date().toISOString(),
@@ -1129,7 +1293,8 @@ export async function main() {
         task_token_usage: sumTokenUsage(runs.map((result) => result.timing)),
         grader_token_usage: sumTokenUsage(runs.map((result) => result.grader_timing))
       }];
-    }))
+    })),
+    standardized_output: standardizedOutput(variants, results)
   };
   benchmark.report = await writeFinalReport(iterationPath, benchmark);
   await writeFile(join(iterationPath, "evaluation.json"), JSON.stringify(benchmark, null, 2));
@@ -1150,4 +1315,4 @@ if (import.meta.main) {
   });
 }
 
-export { DEFAULT_TIMEOUT_MS, runtimeConcurrency, safeRelativePath, usageFromJsonl, MAX_CONVERSATION_TURNS, ROOT, createRuntime, fileExists, loadManifest, nextIteration, resolveSkill, safeId, selectEvals, summarizeDiscovery, summarizeScores, summarizeTurns, sumTokenUsage };
+export { DEFAULT_TIMEOUT_MS, runtimeConcurrency, safeRelativePath, usageFromJsonl, MAX_CONVERSATION_TURNS, ROOT, createRuntime, fileExists, loadManifest, loadRuntimeProfile, nextIteration, resolveSkill, safeId, selectEvals, standardVariantResult, standardizedOutput, summarizeDiscovery, summarizeScores, summarizeTurns, sumTokenUsage };

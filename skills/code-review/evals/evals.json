@@ -1,5 +1,6 @@
 {
   "skill_name": "code-review",
+  "runtime_profile": "../../../evals/runtime-profiles/local-code-review-v1.json",
   "evals": [
     {
       "id": "clean-no-false-positive",

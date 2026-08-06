@@ -11,12 +11,14 @@ import {
   evaluateVariant,
   fileExists,
   loadManifest,
+  loadRuntimeProfile,
   mapWithConcurrency,
   nextIteration,
   resolveSkill,
   runtimeConcurrency,
   safeId,
   selectEvals,
+  standardizedOutput,
   summarizeDiscovery,
   summarizeScores,
   summarizeTurns,
@@ -137,7 +139,8 @@ async function main() {
     }
   }
   const manifest = selectEvals(await loadManifest(participants[0][1], config.evals), config.evalIds);
-  const runtime = createRuntime(config);
+  const runtimeProfile = await loadRuntimeProfile(manifest);
+  const runtime = createRuntime({ ...config, runtimeProfile });
   const workspace = config.workspace ? resolve(ROOT, config.workspace) : join(ROOT, ".skill-benchmarks", safeId(basename(dirname(evalPath))));
   const iteration = config.iteration ?? await nextIteration(workspace);
   const iterationPath = join(workspace, `iteration-${iteration}`);
@@ -159,6 +162,7 @@ async function main() {
   const benchmark = {
     kind: "benchmark",
     skill_name: manifest.skill_name,
+    runtime_profile: { name: runtimeProfile.name, version: runtimeProfile.version, sha256: runtimeProfile.sha256 },
     eval_suite: evalPath,
     iteration,
     generated_at: new Date().toISOString(),
@@ -166,7 +170,8 @@ async function main() {
     participants: participants.map(([variant]) => variant),
     transcript_bundle: await writeTranscriptBundle(iterationPath, results),
     results,
-    summary: buildSummary(participants, results)
+    summary: buildSummary(participants, results),
+    standardized_output: standardizedOutput(participants, results)
   };
   benchmark.report = await writeFinalReport(iterationPath, benchmark);
   await writeFile(join(iterationPath, "benchmark.json"), JSON.stringify(benchmark, null, 2));

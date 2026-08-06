@@ -1,5 +1,6 @@
 {
   "skill_name": "stress-test",
+  "runtime_profile": "../../../evals/runtime-profiles/local-code-review-v1.json",
   "evals": [
     {
       "id": "sequential-enterprise-migration",

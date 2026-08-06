@@ -187,6 +187,25 @@ provides it. When terminal events carry unique IDs, the runner aggregates their
 usage and reports `token_usage_scope`; otherwise it records the final root
 event and labels it accordingly.
 
+Every eval suite must declare a versioned `runtime_profile`, relative to its
+`evals.json`. The bundled `local-code-review-v1` profile gives candidates an
+isolated local workspace and graders read-only access; both adapters disable
+MCP loading. Codex receives a fresh `CODEX_HOME` for every invocation (only
+authentication is linked) and performs an MCP preflight. Kiro receives a fresh
+`HOME` and generated agent with `mcpServers: {}` and `includeMcpJson: false`.
+The resulting JSON and report record the profile hash, CLI/runtime policy,
+fixture instruction hashes, and model provenance. `--model` remains optional
+for Codex; when absent, the report explicitly labels the CLI default as
+unattested rather than guessing its resolved model.
+
+Both `evaluation.json` and `benchmark.json` also contain
+`standardized_output` (schema version 1). It is the stable caller-facing
+envelope: `variant_results` has status, runtime/profile, aggregate scores,
+SARIF, token and duration metrics, and artifact paths for every variant.
+`comparison` supplies deltas against `without_skill` when available (or
+`old_skill` otherwise). The detailed `results` array remains the audit record
+and preserves each agent's original output.
+
 Kiro runs invoke exactly `kiro-cli chat --no-interactive --wrap never` plus any
 configured `--agent` and `--effort`, for example:
 

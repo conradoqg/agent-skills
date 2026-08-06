@@ -1,5 +1,6 @@
 {
   "skill_name": "brainstorm-ideas",
+  "runtime_profile": "../../../evals/runtime-profiles/local-code-review-v1.json",
   "evals": [
     {
       "id": "billing-migration-opportunity-tree",
