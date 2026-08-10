@@ -491,7 +491,6 @@ presumption.
 The final state passed:
 
 ```bash
-node tests/test_code_review_skill.mjs
 node tests/test_evaluate_skills.mjs
 node tests/test_extract_risk_triggers.mjs
 node tests/test_validate_review_sarif.mjs
