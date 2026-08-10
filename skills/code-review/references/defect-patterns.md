@@ -22,7 +22,7 @@ Two rules govern the whole list:
 | A function/method/endpoint is renamed or removed | Does anything still reference the old name? | Search the old name across the repository, including config, docs, and templates |
 | A return value, response body, or event payload changes field names, types, nesting, or nullability | Does every consumer read the new shape? | The consuming code, schema, or client, especially in another module or service |
 | A default parameter, optional field, or overload is introduced | Do existing callers now take a different branch? | The call sites that omit the argument |
-| An interface, protocol, or abstract type gains or loses a member | Does every implementation still satisfy it? | Every implementor, including ones outside the diff |
+| An existing interface, protocol, or abstract type gains or loses a non-optional member | Does every pre-existing implementation still satisfy it? | Search a pre-existing sibling member to enumerate unchanged implementors (searching the new member finds only the declaration), then verify each type or compile/typecheck; do not run this pass for a newly introduced type or optional member |
 | A sync function becomes async (or blocking becomes deferred) | Does every caller await, join, or otherwise wait for it? | Each call site: an unawaited result silently discards both value and error |
 | An error type, code, exit status, or exception class changes | Do handlers still match it? | The catch/rescue/match sites and any caller that switches on the code |
 | A public constant, enum member, or wire-level string value changes | Is the old value persisted, cached, or sent by an older client? | Storage, cache, and any producer/consumer at a different version |
@@ -56,15 +56,17 @@ Two rules govern the whole list:
 | Trigger | Question | Evidence |
 | --- | --- | --- |
 | A column/field is added with a not-null or unique constraint | Is there a default and a backfill, and does every writer supply it? | The insert/update paths, including ones not in the diff |
+| A check constraint is added to an existing populated column | Does repository evidence prove any existing row violates it? | A fixture, seed, migration, query, or documented invariant that establishes a violating value. The prior absence of a constraint and the absence of a backfill alone do not prove incompatible data |
 | A column, table, index, or field is dropped or renamed | Does any reader, writer, or query still use it, and is there a rollback? | Readers in other services, saved queries, dashboards |
 | A migration is destructive or non-transactional | What happens to in-flight traffic during it, and can it be reverted? | Order of deploy vs migration |
 | A `WHERE`, filter, join, or predicate changes, especially adding `or` / removing `and` | Which rows does it now match that it did not before? | Evaluate the predicate against a row that should be excluded |
 | A delete, truncate, purge, or retention sweep changes | What is the blast radius if the predicate is wrong, and is it reversible? | Whether the job runs unattended and with what privileges |
-| A cache key, hash, ETag, or dedupe key composition changes | Can two distinct entities now collide? | The parts dropped from the key and who supplies them |
+| A cache key, hash, ETag, or dedupe key composition changes | Can distinct entities collide, or can one caller reuse another caller's cached object without passing the normal scope check? | The parts dropped from the key, who supplies them, and whether a cache hit returns before tenant/owner validation. Globally unique resource IDs prevent collisions but do not prevent cross-tenant disclosure when knowing another resource ID is sufficient for a shared cache hit |
 | A cache TTL, staleness window, or invalidation path changes | What now serves stale data, and for how long? | The mutation path that should invalidate |
 | A read-modify-write loses a version, ETag, lock, or conditional check | What happens with two concurrent writers? | The update statement's condition |
 | Ordering, pagination, or a boundary comparison changes (`<` vs `<=`, offset math) | Which record is skipped or repeated at the boundary? | The first and last element of a page |
 | Serialization format, encoding, precision, or timezone handling changes | Can previously written data still be read identically? | Round-trip of an old value, and money handled as float |
+| An explicit timezone/clock argument is removed, or an aware/UTC clock becomes local or naive | Which reachable caller now receives the changed default, and which host timezone or DST boundary changes its result? | Enumerate callers that omit the argument. An aware argument remains aware through operations such as `datetime.replace`; if every reachable caller supplies one, the changed default has no demonstrated consequence and is not a finding |
 
 ## Concurrency, reliability, and resources
 
@@ -76,17 +78,19 @@ Two rules govern the whole list:
 | Work moves into a loop, batch, or per-item request | Does cost grow with input size (N+1 queries, per-item network calls)? | The call inside the loop and the loop's bound |
 | Concurrency, parallelism, or pooling changes | What is now shared without a lock, and what is the ordering assumption? | Shared mutable state reachable from the changed path |
 | A resource is opened, acquired, or subscribed | Is it released on every path, including error paths? | The failure branch |
-| An unbounded collection, buffer, or accumulator is introduced | What bounds it under adversarial or large input? | The producer's rate |
+| An unbounded collection, buffer, or accumulator is introduced | What bounds it under adversarial or large input, and did this change actually introduce materialization? | Compare the live payload before and after. A second slice/view of references over input that was already fully materialized does not by itself change bounded memory into unbounded memory; report only when payloads are copied, the asymptotic working set worsens, or a concrete size/budget makes the added storage consequential |
 
 ## Configuration, deploy, and supply chain
 
 | Trigger | Question | Evidence |
 | --- | --- | --- |
 | A shared default, feature flag, or environment value changes | Which services read it, and does any override it locally? | Every reader, since a shared default reaches all of them |
+| A command constructs an index, table, queue, topic, bucket, or other resource name from tenant/workspace/runtime data | Are those exact per-value resources provisioned, and what does the loop do on the first missing one? | Enumerate migrations, infrastructure declarations, and creation paths; string construction or a naming comment is not provisioning |
 | A debug, verbose, profiling, or maintenance capability is enabled | Is this overlay/environment a production one, and what does the capability expose? | The environment markers in the same file |
 | A dependency, base image, action, or toolchain reference becomes floating, or is downgraded | Is the build still reproducible, and did a pin become mutable? | The version specifier before and after |
 | A build/CI trigger, permission scope, or secret exposure changes | Can code from an untrusted source run with those credentials? | The trigger's semantics and what the job then executes |
 | A pipeline gate, required check, approval, or failure condition is relaxed | What can now merge or deploy that could not before? | The condition and its default when unset |
+| A new pipeline or release step claims to publish, upload, deploy, or notify | Does the invoked script perform that side effect on every successful terminal path? | Read the called script through its exits and identify the external operation or emitted artifact; a success log and exit zero alone do not perform the claimed action |
 | A credential, token, key, or connection string appears, moves, or is logged | Is the value real, is it reachable, and where does it land? | The sink: log, artifact, response, or repository history |
 | Container, runtime, or network settings change (privileges, users, ports, mounts) | Does the workload gain capability it does not need? | The setting's default and the workload's requirement |
 

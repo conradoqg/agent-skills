@@ -114,6 +114,9 @@
       "prompt": "Run the code-review skill directly on this repository, in local mode. This is a large multi-commit change: inventory the diff, prioritize reachable regressions, and deliver the local artifacts for the user.",
       "expected_output": "Local-mode delivery whose review result reports introduced regressions across authorization, tenant isolation, input security, data and cache safety, async reliability, API/config compatibility, CI/deploy supply chain, and tests/observability. Most defects are only reachable through a file the diff does not touch, so impact must be established by reading callers and guarantees outside the changed lines. Code that looks dangerous but is protected elsewhere, defects that predate the base branch, and a defect introduced and reverted inside the range must not be reported.",
       "workspace_zip": "evals/fixtures/large.zip",
+      "collaboration": {
+        "require_spawn_attempt_when_enabled": true
+      },
       "sarif": {
         "artifact": "review.sarif",
         "ground_truth": "evals/ground-truth/large.json",
@@ -140,10 +143,10 @@
           "criterion": "Cross-domain coverage",
           "threshold": 8,
           "rubric": {
-            "0": "Finds only noise or misses material regressions.",
-            "5": "Finds isolated issues but misses multiple major changed domains, or judges changed files without checking the callers and guarantees they depend on.",
-            "8": "Finds concrete introduced regressions across several material domains with paths and impact, and establishes reachability through the unchanged callers or guarantees involved.",
-            "10": "Covers security, data/reliability, and delivery/contract risks, and explicitly separates safe churn, code protected by an unchanged guard, defects that predate the base branch, and a defect reverted inside the range."
+            "0": "Finds only noise or misses nearly all material regressions.",
+            "5": "Covers fewer than three represented material domains, or gives no concrete unchanged caller or guarantee establishing reachability.",
+            "8": "Reports verified findings with paths and impacts in at least three represented domains among security, data/reliability, runtime contracts, and delivery/operations, and proves reachability with at least one unchanged caller or guarantee. One omitted root cause does not by itself reduce this anchor.",
+            "10": "Covers every represented material domain and explicitly separates safe churn, code protected by an unchanged guard, defects that predate the base branch, and a defect reverted inside the range."
           }
         }
       ]
@@ -151,7 +154,7 @@
     {
       "id": "large-polyglot-review",
       "prompt": "Run the code-review skill directly on this repository, in local mode. This is a large multi-commit change: inventory the diff, prioritize reachable regressions, and deliver the local artifacts for the user.",
-      "expected_output": "Local-mode delivery whose review result reports introduced regressions across access cost, resource lifetime, deserialization, time and currency arithmetic, redirect handling, interface contracts, retry safety, memory growth, process exit semantics, index coverage, readiness, pipeline gating, container privilege and shell error handling. Most defects are only reachable through a file the diff does not touch. Code that looks dangerous but is protected elsewhere, defects that predate the base branch, and a secret introduced and removed inside the range must not be reported.",
+      "expected_output": "Local-mode delivery whose review result reports introduced regressions across access cost, resource lifetime, deserialization, currency arithmetic, redirect handling, interface contracts, retry safety, process exit semantics, index coverage, readiness, pipeline gating, container privilege and shell error handling. Most defects are only reachable through a file the diff does not touch. Code that looks dangerous but is protected elsewhere, defects that predate the base branch, and a secret introduced and removed inside the range must not be reported.",
       "workspace_zip": "evals/fixtures/polyglot.zip",
       "sarif": {
         "artifact": "review.sarif",
@@ -179,10 +182,10 @@
           "criterion": "Cross-domain coverage",
           "threshold": 8,
           "rubric": {
-            "0": "Finds only noise or misses material regressions.",
-            "5": "Finds isolated issues but misses multiple major changed domains, or judges changed files without checking the callers and guarantees they depend on.",
-            "8": "Finds concrete introduced regressions across several material domains with paths and impact, and establishes reachability through the unchanged callers or guarantees involved.",
-            "10": "Covers security, data/reliability, and delivery/contract risks, and explicitly separates safe churn, code protected by an unchanged guard, defects that predate the base branch, and a defect reverted inside the range."
+            "0": "Finds only noise or misses nearly all material regressions.",
+            "5": "Covers fewer than three represented material domains, or gives no concrete unchanged caller or guarantee establishing reachability.",
+            "8": "Reports verified findings with paths and impacts in at least three represented domains among security, data/reliability, runtime contracts, and delivery/operations, and proves reachability with at least one unchanged caller or guarantee. One omitted root cause does not by itself reduce this anchor.",
+            "10": "Covers every represented material domain and explicitly separates safe churn, code protected by an unchanged guard, defects that predate the base branch, and a defect reverted inside the range."
           }
         }
       ]

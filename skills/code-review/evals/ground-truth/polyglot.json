@@ -42,6 +42,10 @@
       "severity": "MEDIUM",
       "path": "svc/export/writer.py",
       "line": 7,
+      "acceptable_lines": [
+        7,
+        16
+      ],
       "category": "performance-reliability",
       "title": "File handle is no longer closed when validation fails",
       "impact": "The try/finally that guaranteed the close was removed while the validation loop that raises stayed, so every rejected export leaks a descriptor and leaves a partial file behind. Exports run per request, so the leak accumulates. Level: descriptor exhaustion degrades the service as it accumulates rather than losing committed data, so it is warning under the level principle.",
@@ -59,20 +63,6 @@
       "impact": "The unchanged intake path passes an uploaded body straight to this parser, and the full loader instantiates arbitrary types named in the document. The sibling function kept the safe loader, and the module docstring states the rule this change breaks.",
       "requires_reading": [
         "svc/config/profiles.py"
-      ]
-    },
-    {
-      "id": "poly-04",
-      "rule_id": "naive-datetime-boundary",
-      "level": "error",
-      "severity": "HIGH",
-      "path": "svc/billing/period.py",
-      "line": 7,
-      "category": "data-persistence",
-      "title": "Period boundary became timezone naive",
-      "impact": "The unchanged scheduler compares this boundary against timezone-aware timestamps, which raises on comparison, and the repository states that all timestamps are aware and UTC. Level: comparing a naive boundary with an aware timestamp raises at runtime in the unchanged scheduler, which breaks a consumer rather than degrading it, so it is error under the level principle.",
-      "requires_reading": [
-        "svc/billing/schedule.py"
       ]
     },
     {
@@ -131,18 +121,6 @@
       "requires_reading": [
         "worker/dispatch/charge.go"
       ]
-    },
-    {
-      "id": "poly-09",
-      "rule_id": "unbounded-buffer",
-      "level": "warning",
-      "severity": "MEDIUM",
-      "path": "worker/ingest/collect.go",
-      "line": 15,
-      "category": "performance-reliability",
-      "title": "Ingest buffers the whole input before writing",
-      "impact": "Streaming was replaced by materializing every row to order them, so peak memory now grows with input size instead of staying flat, and the function's own contract promised the opposite.",
-      "requires_reading": []
     },
     {
       "id": "poly-10",
@@ -246,7 +224,22 @@
     {
       "kind": "decoy",
       "path": "db/migrations/0006_recreate_note_constraint.sql",
-      "why": "The constraint is dropped and recreated in the same migration."
+      "why": "The repository has no writer that supplies invoice notes and no evidence of rows longer than 2,000 characters, so migration failure is hypothetical rather than a reachable consequence."
+    },
+    {
+      "kind": "decoy",
+      "path": "svc/billing/period.py",
+      "why": "The unchanged scheduler constructs an aware UTC `now` and passes it to `current_period_start(now)`; `datetime.replace` preserves that argument's timezone, so the compared boundary remains aware."
+    },
+    {
+      "kind": "decoy",
+      "path": "worker/ingest/collect.go",
+      "why": "The pre-change `split(source)` already returns `[][]byte` and therefore materializes every row; the added slice duplicates references but does not introduce the claimed transition from flat memory to unbounded buffering."
+    },
+    {
+      "kind": "decoy",
+      "path": "worker/tasks/adjustment.go",
+      "why": "The documented flow applies the stricter Python normalizer before the Go task, and no direct task entrypoint bypasses it; a wider downstream defensive ceiling therefore does not expand reachable accepted input."
     },
     {
       "kind": "decoy",

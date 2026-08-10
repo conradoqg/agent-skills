@@ -8,6 +8,9 @@ three artifacts the pipeline would publish, and you publish nothing.
 ## Rules
 
 - Do not call `ado_*`, `report_outcome`, `report_review_audit`, or `report_sarif_finding`. They are unavailable or out of scope locally.
+- Read back the canonical SARIF before rendering. The findings below contain all
+  and only its results. Within blocking and non-blocking sections, keep the
+  severity order but group adjacent entries by repository file.
 - Print the artifacts in the final response, in the order below. Do not save them to a file instead, and do not replace them with a summary or a link.
 - Use plain repository-relative `path:line` references. There is no PR URL locally, so never invent Azure DevOps links.
 - Keep the CI wording, structure, emoji, and severity icons so the output is a faithful preview of the published result.
