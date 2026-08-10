@@ -31,7 +31,8 @@ run_git_file() {
 	shift
 	if ! git -c core.quotepath=false "$@" >"$out_file" 2>"$out_file.stderr"; then
 		warn "git $* failed; see $out_file.stderr"
-		: >"$out_file"
+		printf 'collect-pr-context: git %s failed; see %s\n' "$*" "$out_file.stderr" >&2
+		return 1
 	fi
 }
 

@@ -361,6 +361,56 @@ means two successful spawn calls and two completed agents.
 | 129 | Large | 1 | Luna | 22 | 90.9% / 90.9% / 1 | 2.191M | 2/2 | Missed async guard and coverage no-op; repeated debug FP |
 | 129 | Poly | 1 | Luna | 13 | 100% / 100% / 1 | 1.599M | 0 | Added refuted naive-timezone finding |
 
+## Luna large-only experiment (2026-08-10)
+
+This experiment ran only `large-multi-domain-review` and
+`large-polyglot-review`, with the runtime grader and `gpt-5.6-luna` requested for
+candidate, specialists, and grader. The runtime did not attest the effective
+model, so these results record the request rather than claiming attestation.
+
+The retained changes are deliberately small:
+
+- above 100 changed files, `change_mapper` and `risk_verifier` now run
+  independently and in parallel, with the primary agent retaining final
+  adjudication;
+- `collect-pr-context.sh` fails closed when a required Git artifact cannot be
+  collected, with an executable fake-Git test;
+- `impact-map.sh` is executable, and its test invokes it directly.
+
+The final three-repetition paired confirmation compared the retained version
+(`old_skill` in iteration 24) with a later CI-plan candidate that was rejected:
+
+| Fixture | Retained root / strict / error / FP | Rejected root / strict / error / FP |
+| --- | --- | --- |
+| Large | 93.94% / 93.94% / 94.12% / 1.00 | 86.36% / 84.85% / 90.20% / 0.67 |
+| Polyglot | 97.44% / 97.44% / 95.83% / 0.33 | 97.44% / 97.44% / 95.83% / 0.33 |
+
+All 12 final cells passed at concurrency 12 with a 600-second per-candidate
+timeout. The retained version used 10.743M task tokens and 0.134M grader tokens;
+the rejected candidate used 8.843M and 0.164M respectively. The cheaper
+candidate was rejected because Large error recall regressed in two of three
+repetitions. The initial baseline was only operationally partial: Large timed
+out, while Polyglot measured 92.31% root/strict, 87.5% error recall, and 0 FP.
+Therefore the experiment does not claim a complete paired improvement over the
+baseline, and neither fixture is evidence of generalization.
+
+Important rejected or inconclusive approaches:
+
+- deletion-aware SARIF anchors and reading validator/impact inputs from `HEAD`
+  passed focused executable tests but regressed paired review quality;
+- fail-closed impact-map capture, a 90-file specialist threshold, a 12-candidate
+  ceiling, and a per-hunk decision manifest added cost, misses, false positives,
+  or timeouts;
+- removing 22.7% of the core prompt saved tokens but materially reduced recall;
+- exposing and then explicitly routing the generic codebase-memory CLI produced
+  no actual CLI calls in the candidate traces, so graph benefit remains
+  inconclusive; `ast-grep` was unavailable and `/usr/bin/sg` was not a
+  substitute;
+- explicit CI authorization and a deterministic fake-ADO publication plan were
+  correct in focused tests but were not retained after the final paired Large
+  regression. CI behavior is not directly observable in the selected local
+  fixtures.
+
 ## What changed and why
 
 ### Evaluation harness
@@ -422,15 +472,16 @@ duplicates before delivery.
 only above 100 changed files:
 
 1. `change_mapper` inventories changed blocks and returns at most 24 candidates;
-2. `risk_verifier` receives the mapper's actual output, challenges it, reopens
-   high-risk cleared leads, and identifies gaps;
+2. an independent `risk_verifier` receives the same deterministic artifacts,
+   challenges high-risk leads, and identifies gaps without waiting for or
+   inheriting the mapper's selection;
 3. the primary agent verifies surviving candidates, deduplicates, writes SARIF,
    and delivers.
 
-The agents run sequentially to preserve an actual handoff and fit the available
-agent slots. A pre-existing exported operation is not cleared solely because no
-in-repository caller is found; a newly added unwired export does not receive that
-presumption.
+The agents run in parallel when two slots are available, with bounded retries and
+a primary-session fallback for a role whose spawn cannot succeed. A pre-existing
+exported operation is not cleared solely because no in-repository caller is
+found; a newly added unwired export does not receive that presumption.
 
 ## Failed approaches worth remembering
 
@@ -467,9 +518,9 @@ presumption.
 3. Pre-register the hypothesis, target suite, expected direction, and stopping
    rule. Do not choose a threshold after seeing the candidate score without
    recording that fact.
-4. Use the `codebase-memory-mcp` CLI for candidate graph discovery when
-   available, but verify leads in source. Its fast index may exclude scripts or
-   fail during persistence; targeted source search is the documented fallback.
+4. Treat graph/AST tooling as optional. Verify actual invocation rather than
+   inferring use from availability, verify every lead in source, and preserve the
+   textual inventory/impact fallback when a tool is absent, stale, or fails.
 5. Run one targeted iteration to reject harmful changes cheaply.
 6. When it improves, run at least two repetitions. Compare root recall, strict
    recall, FP, exact severity, tokens, and collaboration—not only pass/fail.
@@ -494,7 +545,9 @@ The final state passed:
 node tests/test_evaluate_skills.mjs
 node tests/test_extract_risk_triggers.mjs
 node tests/test_validate_review_sarif.mjs
+bash tests/test_collect_pr_context.sh
 bash tests/test_impact_map.sh
+python3 tests/test_model_ranking.py
 python3 tests/validate_skills.py
 git diff --check
 ```

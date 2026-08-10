@@ -1,10 +1,12 @@
-# Codex specialist handoff
+# Codex specialist passes
 
 Use this topology only when the inventory reports more than 100 changed files and
 Codex multi-agent tools are available. Subagents inherit the review sandbox,
 inspect the same repository read-only, and never edit, write SARIF, or publish.
-Run the two specialists sequentially so the second receives the first result and
-the review stays within the available agent slots.
+Start the two specialists independently and in parallel when two subagent slots
+are available. If the second spawn is rejected for capacity, let the first finish
+and retry the second; do not reduce coverage merely because parallelism was
+unavailable.
 
 After phase 1 produces the compare range, inventory, impact map, and risk leads:
 
@@ -25,13 +27,12 @@ After phase 1 produces the compare range, inventory, impact map, and risk leads:
    - changed files/areas inspected
    ```
 
-2. Wait for the mapper to finish. Spawn one `risk_verifier`; include the mapper's
-   returned text verbatim under `HANDOFF FROM change_mapper`. Ask it to challenge
-   every candidate, deduplicate shared root causes, and independently close
-   security, tenant/data, persistence, concurrency, reliability, CI/deploy,
-   observability, and changed-test gaps. It must also independently reopen every
-   mapper `CLEARED LEAD` involving security, authorization, tenant/cache,
-   persistence, or concurrency rather than accepting that disproof verbatim.
+2. Without waiting for the mapper, spawn one independent `risk_verifier` with the
+   same compare range and artifact paths. Ask it to inspect security,
+   tenant/data, persistence, concurrency, reliability, CI/deploy,
+   observability, and changed-test risks without relying on the mapper's
+   candidate selection. It must actively search for concrete disproof and
+   shared root causes rather than accepting or duplicating a suspicious symptom.
    It must not clear a confirmed behavior regression in a pre-existing exported
    operation solely because no in-repository caller is found: absent evidence
    that the operation was removed or dead before the diff, its callable
@@ -41,23 +42,23 @@ After phase 1 produces the compare range, inventory, impact map, and risk leads:
 
    ```text
    ROLE: risk_verifier
-   HANDOFF DECISIONS:
-   - candidate or high-risk cleared lead | confirmed or cleared | concrete source evidence
-   NEW CANDIDATES (maximum 24):
+   CANDIDATES (maximum 24):
    - changed fix path:line | mechanism | reachable consequence | proving source
+   CLEARED HIGH-RISK LEADS:
+   - path:block | concrete disproof
    COVERAGE GAPS:
    - changed file/area not settled
    ```
 
-3. Wait for the verifier. The primary agent verifies every surviving or new
-   candidate in source and the diff, fills any coverage gap, assigns severity,
+3. Wait for both specialists. The primary agent cross-checks their independent
+   outputs, verifies every surviving candidate in source and the diff,
+   deduplicates shared root causes, fills every coverage gap, assigns severity,
    writes and validates SARIF, and renders the response.
 
-A handoff is valid only when both spawn calls succeed, both agents complete, and
-the second spawn contains the actual first result. When the runtime prompt says
-multi-agent tools are enabled, attempt the spawn rather than inferring that they
-are unavailable. If a spawn fails, make at most three total attempts for that
-same role; only after all three fail run the missing pass in the primary
-session. For 100 or fewer changed files or when the tools are not enabled,
-perform the two passes sequentially in the primary session without pretending
-that a handoff occurred.
+A parallel specialist run is valid only when both spawn calls succeed and both
+agents complete. When the runtime prompt says multi-agent tools are enabled,
+attempt both spawns rather than inferring that they are unavailable. If a spawn
+fails, make at most three total attempts for that same role; only after all three
+fail run the missing pass in the primary session. For 100 or fewer changed files
+or when the tools are not enabled, perform the two passes sequentially in the
+primary session without pretending that parallel specialists ran.
