@@ -10,6 +10,7 @@ license information where applicable.
 |---|---|---|
 | `chrome-devtools-wsl2` | General | Launch and attach Windows Chrome for browser automation from WSL2. |
 | `council` | Adapted | Run a structured, delegated, multi-perspective council. |
+| `user-trials` | General | Test products through grounded user personas operating browser, CLI, or API surfaces. |
 | `git-user-activity-summary` | General | Summarize Git activity by repository across a folder tree. |
 | `stress-test` | Adapted | Stress-test a plan, decision, design, or idea in sequential or batch mode. |
 | `model-leaderboard-cost-benefit` | General | Rank current AI models by auditable capability and cost criteria. |

@@ -29,6 +29,7 @@ Options:
   --workspace <path>      Root for generated evidence (default: .skill-evals/<skill>).
   --runtime <name>        Runtime adapter: codex or kiro (default: codex).
   --codex-bin <path>      Codex executable when --runtime codex (default: codex).
+  --codex-config <k=v>    Explicit Codex candidate config override; repeatable.
   --kiro-bin <path>       Kiro executable when --runtime kiro (default: kiro-cli).
   --kiro-agent <name>     Optional agent passed to Kiro.
   --kiro-agent-file <path>
@@ -51,7 +52,7 @@ Options:
 }
 
 function parseArgs(argv) {
-  const values = { runtime: "codex", grader: "runtime", codexBin: "codex", kiroBin: "kiro-cli", kiroModel: "claude-sonnet-5", timeoutMs: DEFAULT_TIMEOUT_MS, concurrency: 1, evalIds: [] };
+  const values = { runtime: "codex", grader: "runtime", codexBin: "codex", codexConfigs: [], kiroBin: "kiro-cli", kiroModel: "claude-sonnet-5", timeoutMs: DEFAULT_TIMEOUT_MS, concurrency: 1, evalIds: [] };
   for (let index = 0; index < argv.length; index += 1) {
     const key = argv[index];
     if (key === "--help") return { help: true };
@@ -71,6 +72,7 @@ function parseArgs(argv) {
     else if (key === "--variants") values.variants = value.split(",").map((name) => name.trim()).filter(Boolean);
     else if (key === "--workspace") values.workspace = value;
     else if (key === "--codex-bin") values.codexBin = value;
+    else if (key === "--codex-config") values.codexConfigs.push(value);
     else if (key === "--kiro-bin") values.kiroBin = value;
     else if (key === "--kiro-agent") values.kiroAgent = value;
     else if (key === "--kiro-agent-file") values.kiroAgentFile = value;
@@ -473,6 +475,7 @@ async function runCodex({ config, cwd, skillPath, inputs, outputDir, prompt, lab
   const args = ["exec", "--json", "--ephemeral", "--ignore-user-config", "--skip-git-repo-check", "--sandbox", "workspace-write", "--color", "never", "-C", cwd];
   if (skillPath) args.push("--add-dir", skillPath);
   if (inputs.length > 0) args.push("--add-dir", dirname(inputs[0]));
+  for (const override of config.codexConfigs ?? []) args.push("--config", override);
   if (config.model) args.push("--model", config.model);
   if (outputSchema) {
     const schemaPath = join(outputDir, "response-schema.json");
@@ -898,8 +901,7 @@ export async function evaluateVariant({ runtime, inputRoot, iterationPath, test,
   const prompt = [
     "You are executing one isolated evaluation run.",
     instruction,
-    "Task: Review the committed branch change from main to HEAD as a pull request.",
-    `Additional evaluation request: ${test.prompt}`,
+    `Task: ${test.prompt}`,
     `Input files: ${inputs.length ? inputs.join(", ") : "none"}`,
     `Save any produced files under: ${outputs}`,
     ...(test.sarif ? [

@@ -1,0 +1,20 @@
+openapi: 3.0.3
+info:
+  title: Invoice Read API
+  version: 1.0.0
+paths:
+  /v1/invoices:
+    get:
+      summary: List invoices
+      parameters:
+        - in: query
+          name: cursor
+          schema: { type: string }
+      responses:
+        "200": { description: Invoice page }
+  /v1/invoices/{invoiceId}:
+    get:
+      summary: Get one invoice
+      responses:
+        "200": { description: Invoice }
+        "404": { description: Invoice not found }

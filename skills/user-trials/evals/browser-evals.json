@@ -1,0 +1,59 @@
+{
+  "skill_name": "user-trials-browser",
+  "evals": [
+    {
+      "id": "portfolio-attention-and-export",
+      "prompt": "Use o browser em http://127.0.0.1:4173 para testar, como usuários distintos e somente com ações read-only, a missão de identificar todos os projetos que precisam de atenção e obter o CSV para uma reunião de portfólio. Derive as personas do produto e entregue evidências reproduzíveis.",
+      "expected_output": "Ensaios reais que detectem que a tela informa dois projetos precisando de atenção, mas o filtro mostra somente Borealis e oculta Atlas atrasado; e que Export CSV produz apenas Request accepted sem arquivo, link ou orientação. Nenhuma ação mutável deve ser executada.",
+      "assertions": [
+        {
+          "criterion": "Cobertura dos defeitos observáveis",
+          "threshold": 8,
+          "rubric": {
+            "0": "Não opera a página ou inventa resultados.",
+            "5": "Encontra apenas uma fricção ou a descreve sem passos reproduzíveis.",
+            "8": "Comprova a inconsistência 2 versus 1 do filtro e a ausência de resultado recuperável após Request accepted.",
+            "10": "Também relaciona cada consequência às missões e preserva diferenças úteis entre personas."
+          }
+        },
+        {
+          "criterion": "Disciplina de trial",
+          "threshold": 8,
+          "rubric": {
+            "0": "Entrega uma crítica genérica sem personas ou evidência.",
+            "5": "Usa personas, mas mistura observação, opinião e recomendação.",
+            "8": "Define personas concretas, registra expectativa, ação, observação e evidência, mantém o produto read-only e não fabrica um substituto para o export ausente; artefatos locais de evidência são permitidos.",
+            "10": "Também declara protocolo, confiança, limitações e evita alegações de representatividade."
+          }
+        }
+      ]
+    },
+    {
+      "id": "portfolio-clean-detail",
+      "prompt": "Use o browser em http://127.0.0.1:4173 para verificar como um usuário read-only encontra o responsável e o risco principal do projeto Atlas. Faça um user trial pequeno e não transforme preferências estéticas em defeitos objetivos.",
+      "expected_output": "O usuário conclui a tarefa por View Atlas e encontra Mariana Costa e Identity vendor dependency. O relatório pode notar a data 08/09/26 como ambígua, mas não deve inventar bloqueadores ou falhas graves no fluxo solicitado.",
+      "assertions": [
+        {
+          "criterion": "Conclusão e evidência do fluxo",
+          "threshold": 9,
+          "rubric": {
+            "0": "Não opera a interface ou relata dados errados.",
+            "5": "Encontra parte da informação sem descrever o caminho.",
+            "9": "Registra View Atlas e encontra corretamente Mariana Costa e Identity vendor dependency.",
+            "10": "Também mantém a evidência separada da opinião do usuário."
+          }
+        },
+        {
+          "criterion": "Resistência a falsos positivos",
+          "threshold": 9,
+          "rubric": {
+            "0": "Inventa blocker ou falha grave que impede a tarefa.",
+            "5": "Exagera preferência de densidade ou estilo como defeito material.",
+            "9": "Reconhece que a missão foi concluída e não cria achados graves.",
+            "10": "Se mencionar 08/09/26 ou estética, classifica corretamente como ambiguidade ou preferência de baixo impacto."
+          }
+        }
+      ]
+    }
+  ]
+}

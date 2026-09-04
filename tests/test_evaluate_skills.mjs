@@ -124,8 +124,13 @@ await chmod(fakeKiro, 0o755);
 process.env.FAKE_KIRO_LOG = kiroLog;
 process.env.FAKE_CODEX_LOG = codexLog;
 
-const first = await run("node", ["scripts/evaluate-skills.ts", "--skill", skill, "--workspace", workspace, "--codex-bin", fakeCodex, "--iteration", "1"]);
+const first = await run("node", [
+  "scripts/evaluate-skills.ts", "--skill", skill, "--workspace", workspace,
+  "--codex-bin", fakeCodex, "--codex-config", "features.example=true",
+  "--codex-config", "candidate.label=fixture", "--iteration", "1"
+]);
 assert.equal(first.code, 0, first.stderr);
+assert.match(await readFile(codexLog, "utf8"), /--config features\.example=true --config candidate\.label=fixture/);
 const benchmark = JSON.parse(await readFile(join(workspace, "iteration-1", "evaluation.json"), "utf8"));
 assert.equal(benchmark.summary.with_skill.passed, 1);
 assert.deepEqual(benchmark.summary.with_skill.task_token_usage, {
@@ -275,7 +280,7 @@ assert.equal(workspaceResult.sarif.passed, true);
 assert.equal(workspaceResult.grading.at(-1).criterion, "Required SARIF artifact and ground-truth match");
 assert.equal(await readFile(join(temp, "workspace-sarif-evidence", "iteration-1", "eval-workspace-sarif", "with_skill", "inputs", "workspace", "marker.txt"), "utf8"), "workspace fixture");
 const sarifPromptLog = await readFile(codexLog, "utf8");
-assert.match(sarifPromptLog, /Task: Review the committed branch change from main to HEAD as a pull request\./);
+assert.match(sarifPromptLog, /Task: Inspect the workspace and produce SARIF\./);
 assert.match(sarifPromptLog, /Required SARIF artifact path: .*review\.sarif/);
 assert.match(sarifPromptLog, /Every result must include ruleId, level, message\.text, a repository-relative/);
 assert.match(sarifPromptLog, /Completion safety: write the SARIF artifact before the final response\./);

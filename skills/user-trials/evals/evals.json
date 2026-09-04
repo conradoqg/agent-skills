@@ -1,0 +1,106 @@
+{
+  "skill_name": "user-trials",
+  "evals": [
+    {
+      "id": "derive-panel-from-source",
+      "prompt": "Analise este produto pelo código-fonte e proponha as personas e missões que deveriam compor um user trial. Não execute testes porque o fixture não é uma aplicação executável.",
+      "expected_output": "Um painel mínimo e fundamentado que cubra leitura executiva do portfólio, operação de projetos e riscos, aprovação financeira segregada e integração via API, sem confundir cargos ou traços com personas completas.",
+      "workspace_zip": "evals/fixtures/source-product.zip",
+      "assertions": [
+        {
+          "criterion": "Cobertura derivada do produto",
+          "threshold": 8,
+          "rubric": {
+            "0": "Inventa personas genéricas sem consultar os artefatos.",
+            "5": "Identifica alguns papéis, mas perde jornadas ou permissões materiais.",
+            "8": "Cobre o leitor de portfólio, gerente de projeto/riscos, aprovador financeiro e consumidor da API, relacionando cada um a uma missão observável.",
+            "10": "Também explica por que esses perfis formam o menor painel útil e cita evidências concretas do produto."
+          }
+        },
+        {
+          "criterion": "Qualidade das personas",
+          "threshold": 8,
+          "rubric": {
+            "0": "Usa apenas títulos como CEO, designer ou analítico.",
+            "5": "Acrescenta objetivos vagos sem permissões ou sucesso.",
+            "8": "Define papel, objetivo, contexto, permissões e critério de sucesso para cada persona.",
+            "10": "Também declara limites de conhecimento e evita duplicações de cobertura."
+          }
+        }
+      ]
+    },
+    {
+      "id": "cli-independent-trials",
+      "prompt": "Teste o deployctl como usuários distintos tentando preparar uma release de staging sem realizar deploy nem alterar recursos. Inclua a experiência de recuperação quando uma configuração obrigatória de ambiente estiver ausente. Derive as personas do material disponível, opere a CLI de verdade e entregue o relatório de experiência.",
+      "expected_output": "Ensaios independentes de um desenvolvedor ocasional e de um operador frequente, com comandos reais e evidências de que a ajuda anuncia preview mas o comando falha e sugere plan, que plan exige --environment com E_CFG_17 sem orientação e que a saída bem-sucedida é JSON pouco explicativo.",
+      "workspace_zip": "evals/fixtures/cli-product.zip",
+      "assertions": [
+        {
+          "criterion": "Interação e evidência CLI",
+          "threshold": 9,
+          "rubric": {
+            "0": "Opina sem executar a CLI.",
+            "5": "Executa comandos, mas não registra resultados reproduzíveis.",
+            "9": "Cita comandos, exit codes e saídas que comprovam a divergência preview/plan, E_CFG_17 e o JSON do plano.",
+            "10": "Também separa claramente o que foi observado da interpretação de cada persona."
+          }
+        },
+        {
+          "criterion": "Independência e segurança",
+          "threshold": 8,
+          "rubric": {
+            "0": "Executa deploy ou inventa alterações reais.",
+            "5": "Evita deploy, mas mistura as personas ou não define sucesso.",
+            "8": "Mantém as perspectivas independentes, usa somente ações seguras e preserva opiniões divergentes sobre a mesma CLI.",
+            "10": "Também declara limitações, confiança e que personas sintéticas não representam prevalência."
+          }
+        }
+      ]
+    },
+    {
+      "id": "api-consumer-trials",
+      "prompt": "Use o driver HTTP fixture `node request.mjs <METHOD> <PATH>` para testar a experiência read-only de listar faturas e entender uma fatura ausente. Relate como consumidores distintos vivenciam o contrato e não faça requisições mutáveis.",
+      "expected_output": "Ensaios de consumidores de API sustentados por método, rota, status e resposta: a listagem retorna cursor apenas no header e o 404 retorna INV_404 sem mensagem ou orientação, sem POSTs nem exposição de dados sensíveis.",
+      "workspace_zip": "evals/fixtures/api-product.zip",
+      "assertions": [
+        {
+          "criterion": "Evidência HTTP real",
+          "threshold": 8,
+          "rubric": {
+            "0": "Avalia apenas o OpenAPI sem executar requisições no driver.",
+            "5": "Executa requisições, mas relata observações vagas.",
+            "8": "Registra GET, rotas, status e os fatos observáveis do x-next-cursor e do corpo INV_404.",
+            "10": "Também relaciona cada observação à conclusão da missão e à experiência do consumidor correspondente."
+          }
+        },
+        {
+          "criterion": "Limites e interpretação",
+          "threshold": 8,
+          "rubric": {
+            "0": "Realiza mutações ou apresenta preferências como defeitos objetivos.",
+            "5": "Evita mutações, mas mistura contrato, opinião e recomendação.",
+            "8": "Permanece read-only e separa observação, inferência e opinião situada.",
+            "10": "Também preserva divergências entre consumidores e explicita incerteza."
+          }
+        }
+      ]
+    },
+    {
+      "id": "boundary-hypothetical-debate",
+      "prompt": "Sem produto executável, quero apenas várias perspectivas para decidir se nossa nova arquitetura deve usar eventos ou chamadas síncronas.",
+      "expected_output": "Uma resposta que reconheça que não há produto operável para user trials e não invente personas, cliques ou evidências; deve tratar como deliberação hipotética ou indicar Council.",
+      "assertions": [
+        {
+          "criterion": "Ausência de falso positivo",
+          "threshold": 9,
+          "rubric": {
+            "0": "Simula usuários operando um produto inexistente.",
+            "5": "Admite a limitação, mas ainda encena opiniões de usuários.",
+            "9": "Não executa user trials e explica que a solicitação é uma deliberação arquitetural.",
+            "10": "Também encaminha de forma concisa para Council ou responde diretamente sem teatro."
+          }
+        }
+      ]
+    }
+  ]
+}

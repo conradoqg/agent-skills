@@ -1,0 +1,14 @@
+openapi: 3.0.3
+info:
+  title: Northstar Portfolio API
+  version: 1.0.0
+paths:
+  /v1/portfolio/projects:
+    get:
+      summary: List projects for reporting integrations
+  /v1/portfolio/projects/{projectId}/status:
+    get:
+      summary: Read current delivery status
+  /v1/exports:
+    post:
+      summary: Create a portfolio export job

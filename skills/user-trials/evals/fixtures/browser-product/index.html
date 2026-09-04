@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Orbit Portfolio</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header>
+    <div>
+      <p class="eyebrow">ORBIT</p>
+      <h1>Portfolio review</h1>
+    </div>
+    <button id="export" type="button">Export CSV</button>
+  </header>
+
+  <main id="app" aria-live="polite">
+    <section id="portfolio-view">
+      <div class="summary">
+        <article><strong>4</strong><span>Active projects</span></article>
+        <article><strong>2</strong><span>Need attention</span></article>
+        <article><strong>1</strong><span>Blocked</span></article>
+      </div>
+
+      <div class="toolbar">
+        <button id="attention-filter" type="button" aria-pressed="false">Needs attention</button>
+        <span id="filter-summary">Showing all projects</span>
+      </div>
+
+      <table>
+        <caption>Delivery portfolio</caption>
+        <thead><tr><th>Project</th><th>Status</th><th>Owner</th><th>Next milestone</th><th></th></tr></thead>
+        <tbody id="project-rows"></tbody>
+      </table>
+    </section>
+
+    <section id="detail-view" hidden>
+      <button id="back" class="quiet" type="button">Back to portfolio</button>
+      <p class="eyebrow">PROJECT</p>
+      <h2 id="project-name"></h2>
+      <dl>
+        <div><dt>Status</dt><dd id="project-status"></dd></div>
+        <div><dt>Owner</dt><dd id="project-owner"></dd></div>
+        <div><dt>Primary risk</dt><dd id="project-risk"></dd></div>
+        <div><dt>Recovery date</dt><dd id="project-recovery"></dd></div>
+      </dl>
+    </section>
+  </main>
+
+  <div id="toast" role="status" hidden></div>
+  <script src="/app.js"></script>
+</body>
+</html>
