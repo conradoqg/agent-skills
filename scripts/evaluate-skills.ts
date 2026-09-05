@@ -30,6 +30,7 @@ Options:
   --runtime <name>        Runtime adapter: codex or kiro (default: codex).
   --codex-bin <path>      Codex executable when --runtime codex (default: codex).
   --codex-config <k=v>    Explicit Codex candidate config override; repeatable.
+  --approve-for-me        Route eligible Codex candidate approvals through auto-review.
   --kiro-bin <path>       Kiro executable when --runtime kiro (default: kiro-cli).
   --kiro-agent <name>     Optional agent passed to Kiro.
   --kiro-agent-file <path>
@@ -59,6 +60,10 @@ function parseArgs(argv) {
     if (!key.startsWith("--")) throw new Error(`Unexpected argument: ${key}`);
     if (key === "--kiro-trust-all-tools") {
       values.kiroTrustAllTools = true;
+      continue;
+    }
+    if (key === "--approve-for-me") {
+      values.approveForMe = true;
       continue;
     }
     const value = argv[index + 1];
@@ -103,6 +108,7 @@ function parseArgs(argv) {
     throw new Error("--concurrency must be a positive integer");
   }
   if (!['runtime', 'none'].includes(values.grader)) throw new Error("--grader must be runtime or none");
+  if (values.approveForMe && values.runtime !== "codex") throw new Error("--approve-for-me requires --runtime codex");
   if (values.runtime === "kiro") {
     if (values.kiroTrustAllTools && values.kiroTrustTools !== undefined) throw new Error("Use exactly one of --kiro-trust-tools or --kiro-trust-all-tools");
     if (!values.kiroTrustAllTools && values.kiroTrustTools === undefined) throw new Error("--runtime kiro requires --kiro-trust-tools or --kiro-trust-all-tools");
@@ -305,7 +311,10 @@ async function copyRuntimeSkill(sourceSkill, variantDir) {
 
 function spawnProcess(command, args, options) {
   return new Promise((resolvePromise) => {
-    const child = spawn(command, args, { cwd: options.cwd, env: { ...process.env, ...(options.env ?? {}) }, stdio: ["ignore", "pipe", "pipe"] });
+    const nodeScript = /\.(?:[cm]?js|ts)$/i.test(command);
+    const executable = nodeScript ? process.execPath : command;
+    const executableArgs = nodeScript ? [command, ...args] : args;
+    const child = spawn(executable, executableArgs, { cwd: options.cwd, env: { ...process.env, ...(options.env ?? {}) }, stdio: ["ignore", "pipe", "pipe"] });
     let stdout = "";
     let stderr = "";
     let timedOut = false;
@@ -367,13 +376,16 @@ async function unzipWorkspace(inputRoot, workspaceZip, target, evalId) {
   if (!safeRelativePath(workspaceZip) || !relative(inputRoot, archive) || relative(inputRoot, archive).startsWith("..") || !(await fileExists(archive))) {
     throw new Error(`Eval ${evalId}: workspace_zip does not exist inside the eval suite: ${workspaceZip}`);
   }
-  const listing = await spawnProcess("unzip", ["-Z1", archive], { cwd: inputRoot, timeoutMs: DEFAULT_TIMEOUT_MS });
+  const archiveTool = process.platform === "win32" ? "tar" : "unzip";
+  const listingArgs = process.platform === "win32" ? ["-tf", archive] : ["-Z1", archive];
+  const listing = await spawnProcess(archiveTool, listingArgs, { cwd: inputRoot, timeoutMs: DEFAULT_TIMEOUT_MS });
   if (listing.code !== 0) throw new Error(`Eval ${evalId}: cannot list workspace_zip: ${workspaceZip}`);
   for (const entry of listing.stdout.split(/\r?\n/).filter(Boolean)) {
     if (!safeRelativePath(entry.replace(/\/$/, ""))) throw new Error(`Eval ${evalId}: unsafe workspace_zip entry: ${entry}`);
   }
   await mkdir(target, { recursive: true });
-  const extracted = await spawnProcess("unzip", ["-qq", archive, "-d", target], { cwd: inputRoot, timeoutMs: DEFAULT_TIMEOUT_MS });
+  const extractArgs = process.platform === "win32" ? ["-xf", archive, "-C", target] : ["-qq", archive, "-d", target];
+  const extracted = await spawnProcess(archiveTool, extractArgs, { cwd: inputRoot, timeoutMs: DEFAULT_TIMEOUT_MS });
   if (extracted.code !== 0) throw new Error(`Eval ${evalId}: cannot extract workspace_zip: ${workspaceZip}`);
 }
 
@@ -472,7 +484,8 @@ async function validateSarif({ test, outputDir, inputRoot }) {
 async function runCodex({ config, cwd, skillPath, inputs, outputDir, prompt, label, outputSchema = null, env }) {
   await mkdir(outputDir, { recursive: true });
   const lastMessage = join(outputDir, "last-message.md");
-  const args = ["exec", "--json", "--ephemeral", "--ignore-user-config", "--skip-git-repo-check", "--sandbox", "workspace-write", "--color", "never", "-C", cwd];
+  const permissionArgs = config.approveForMe ? ["--approve-for-me"] : ["--sandbox", "workspace-write"];
+  const args = ["exec", "--json", "--ephemeral", "--ignore-user-config", "--skip-git-repo-check", ...permissionArgs, "--color", "never", "-C", cwd];
   if (skillPath) args.push("--add-dir", skillPath);
   if (inputs.length > 0) args.push("--add-dir", dirname(inputs[0]));
   for (const override of config.codexConfigs ?? []) args.push("--config", override);

@@ -1,0 +1,25 @@
+{
+  "skill_name": "code-craftsmanship-refactor",
+  "cases": [
+    {"id": 1, "scenario": "Function getUser also persists state.", "expected_decision": "Expose the side effect in the name or structure only if the exact sequence remains stable; verify persistence and output."},
+    {"id": 2, "scenario": "Variable named data has a clear domain meaning.", "expected_decision": "Propose a domain name only when it improves use sites; do not swap equivalent synonyms."},
+    {"id": 3, "scenario": "Large component has two independent responsibilities.", "expected_decision": "Propose a cohesive split, classify structural risk, preserve props/state/effects/accessibility, and verify interactions."},
+    {"id": 4, "scenario": "Large component is cohesive.", "expected_decision": "Do not split by size; allow only small local clarity improvements."},
+    {"id": 5, "scenario": "utils folder mixes unrelated domain concepts.", "expected_decision": "Map ownership and consumers, then propose focused domain placement in independently verified moves."},
+    {"id": 6, "scenario": "Comment narrates the next line.", "expected_decision": "Remove it after confirming it is not a directive or contract."},
+    {"id": 7, "scenario": "Comment explains a compatibility workaround.", "expected_decision": "Preserve or tighten the why/risk; treat it as a regression fence."},
+    {"id": 8, "scenario": "Public docstring omits side effects and errors.", "expected_decision": "Improve the public contract documentation without changing the signature or behavior."},
+    {"id": 9, "scenario": "Safe local rename.", "expected_decision": "Apply automatically, update references, run focused checks, and inspect the diff."},
+    {"id": 10, "scenario": "Name participates in serialization.", "expected_decision": "Classify high risk and request approval with compatibility, migration, verification, and rollback details."},
+    {"id": 11, "scenario": "File move has only verified static imports.", "expected_decision": "Treat as low/medium according to reach, update all consumers, search stale paths, and build/test."},
+    {"id": 12, "scenario": "File move participates in dynamic import.", "expected_decision": "Classify high risk; pause for approval and runtime discovery evidence."},
+    {"id": 13, "scenario": "Untested code needs non-trivial refactoring.", "expected_decision": "Add and run characterization at a stable seam before refactoring, or limit the change."},
+    {"id": 14, "scenario": "Existing test asserts private implementation details.", "expected_decision": "Do not treat it as behavioral proof; add stable-seam coverage before changing internals."},
+    {"id": 15, "scenario": "Apparently dead code is reached through reflection.", "expected_decision": "Preserve it; textual no-reference evidence is insufficient for deletion."},
+    {"id": 16, "scenario": "Generated file contains ugly names and comments.", "expected_decision": "Do not edit it manually; change the generator/schema only if separately in scope and regenerate normally."},
+    {"id": 17, "scenario": "Worktree has unrelated user changes.", "expected_decision": "Record and preserve them; constrain edits/diff and never reset or reformat them."},
+    {"id": 18, "scenario": "Repository tests fail before editing.", "expected_decision": "Record exact baseline failures and prove no new/changed failures; do not claim a green baseline."},
+    {"id": 19, "scenario": "User explicitly requests repository-wide craftsmanship.", "expected_decision": "Accept scope but divide by module into independent plans and verified batches; never one rewrite."},
+    {"id": 20, "scenario": "Review suggests a new architectural layer.", "expected_decision": "Reject it from this workflow and report it as a separate architecture decision."}
+  ]
+}

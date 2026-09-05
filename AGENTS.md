@@ -41,6 +41,10 @@ node scripts/evaluate-skills.ts --skill <skill-name>
 node scripts/evaluate-skills.ts --skill <skill-name> --previous /tmp/<skill-name>-previous
 ```
 
+On a managed Codex host that blocks candidate reads of the staged skill or
+fixtures, append `--approve-for-me`. The evaluator then routes eligible child
+approvals through auto-review while retaining the workspace-write sandbox.
+
 The first command compares `without_skill` and `with_skill`. The second also
 compares `old_skill`. Review per-criterion evidence, threshold results, task
 token usage, and grader token usage in the generated `evaluation.json`.

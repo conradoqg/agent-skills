@@ -1,0 +1,20 @@
+{
+  "skill_name": "code-craftsmanship-refactor",
+  "cases": [
+    {"prompt": "Deixe este código mais profissional.", "should_activate": true, "reason": "Direct polish/quality intent on existing code."},
+    {"prompt": "Melhore os nomes e organize os componentes.", "should_activate": true, "reason": "Naming and component organization are core craftsmanship tasks."},
+    {"prompt": "Faça uma revisão de nomenclatura, arquivos e comentários.", "should_activate": true, "reason": "Explicit multi-lens craftsmanship review."},
+    {"prompt": "Refatore sem mudar nenhuma funcionalidade.", "should_activate": true, "reason": "Behavior-preserving refactor intent."},
+    {"prompt": "Organize esta pasta e deixe as responsabilidades mais claras.", "should_activate": true, "reason": "Discoverability and cohesion of existing code."},
+    {"prompt": "Remova comentários ruins e melhore a intenção do código.", "should_activate": true, "reason": "Comment and intention cleanup."},
+    {"prompt": "Faça um craftsmanship pass no diff.", "should_activate": true, "reason": "Explicit skill domain and changed-code scope."},
+    {"prompt": "Implemente autenticação.", "should_activate": false, "reason": "Feature development."},
+    {"prompt": "Corrija este bug.", "should_activate": false, "reason": "Bug fixing."},
+    {"prompt": "Escolha entre PostgreSQL e DynamoDB.", "should_activate": false, "reason": "Architecture/provider selection."},
+    {"prompt": "Redesenhe a arquitetura para microsserviços.", "should_activate": false, "reason": "Architecture redesign."},
+    {"prompt": "Faça uma auditoria de segurança.", "should_activate": false, "reason": "Security-only review."},
+    {"prompt": "Formate este arquivo com Prettier.", "should_activate": false, "reason": "Formatting-only request."},
+    {"prompt": "Otimize esta consulta.", "should_activate": false, "reason": "Performance optimization."},
+    {"prompt": "Atualize a versão do framework.", "should_activate": false, "reason": "Dependency/framework migration."}
+  ]
+}

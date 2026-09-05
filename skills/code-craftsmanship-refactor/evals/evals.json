@@ -1,0 +1,152 @@
+{
+  "skill_name": "code-craftsmanship-refactor",
+  "evals": [
+    {
+      "id": "typescript-comments-and-names-review",
+      "prompt": "In review-only mode, audit the provided TypeScript file for professional naming, comments, and maintainability. Give concrete proposed changes, what you would deliberately preserve, risk, and verification evidence. Do not edit files.",
+      "expected_output": "A restrained audit that improves generic internal names and removes narrative comments while preserving the compatibility explanation and observable formatting behavior.",
+      "files": [
+        "evals/fixtures/typescript/order-summary.ts"
+      ],
+      "assertions": [
+        {
+          "criterion": "Useful craftsmanship findings with restraint",
+          "threshold": 8,
+          "rubric": {
+            "0": "Provides generic advice or no concrete findings.",
+            "5": "Suggests some clearer names/comments but treats all comments or stylistic alternatives alike.",
+            "8": "Identifies concrete generic names and narrative comments, proposes small local improvements, and avoids speculative abstractions.",
+            "10": "Also distinguishes necessary/recommended/opinionated value and ties each proposed change to call-site clarity or a local principle."
+          }
+        },
+        {
+          "criterion": "Behavior and essential-comment preservation",
+          "threshold": 8,
+          "rubric": {
+            "0": "Would change output behavior or remove the compatibility comment.",
+            "5": "Says behavior should be preserved without naming relevant observables.",
+            "8": "Explicitly preserves amount formatting, item ordering, and the compatibility explanation, with focused verification.",
+            "10": "Also identifies the comment as a regression fence and specifies before/after output or tests as evidence."
+          }
+        }
+      ]
+    },
+    {
+      "id": "python-serialized-rename-risk",
+      "prompt": "Please rename the Python field `data` to `payload` and clean up the file. Use review-and-apply mode, but follow risk-based approval. Inspect all provided code before deciding what can be changed.",
+      "expected_output": "The agent recognizes that the requested rename crosses JSON, getattr, registry, and public-constructor contracts, does not silently apply it, and requests explicit approval with a compatibility and verification plan.",
+      "files": [
+        "evals/fixtures/python/serialized_event.py"
+      ],
+      "assertions": [
+        {
+          "criterion": "Dynamic and persisted contract detection",
+          "threshold": 9,
+          "rubric": {
+            "0": "Treats `data` as a local rename.",
+            "5": "Notices serialization generally but misses runtime name consumers.",
+            "9": "Identifies JSON/persisted spelling, public construction, getattr, and registry/reflection-like use as contract hazards.",
+            "10": "Traces the affected consumers and separates any truly local low-risk cleanup."
+          }
+        },
+        {
+          "criterion": "Approval and compatibility discipline",
+          "threshold": 9,
+          "rubric": {
+            "0": "Silently applies the rename.",
+            "5": "Warns about risk after proposing the rename as complete.",
+            "9": "Pauses the high-risk rename for explicit approval and presents validation/rollback or a lower-risk compatibility alternative.",
+            "10": "Also avoids claiming tests alone prove safety and clearly states any edits actually made."
+          }
+        }
+      ]
+    },
+    {
+      "id": "cohesive-ui-component-boundary",
+      "prompt": "Review this UI component for craftsmanship. A reviewer said it is too large and must be split into at least four components. Use review-only mode and decide based on responsibility rather than line count.",
+      "expected_output": "A grounded review that does not accept a size quota, recognizes the cohesive shipping-choice responsibility, and proposes only evidence-based local improvements while preserving UI behavior.",
+      "files": [
+        "evals/fixtures/typescript/ShippingChoicePanel.tsx"
+      ],
+      "assertions": [
+        {
+          "criterion": "Cohesion over size metrics",
+          "threshold": 9,
+          "rubric": {
+            "0": "Splits into four components because requested.",
+            "5": "Rejects a hard quota but still recommends arbitrary extraction.",
+            "9": "Evaluates the actual responsibility and keeps cohesive markup/behavior together unless a nameable independent concept is shown.",
+            "10": "Also accounts for navigation cost and explains what future evidence would justify extraction."
+          }
+        },
+        {
+          "criterion": "UI behavior preservation",
+          "threshold": 8,
+          "rubric": {
+            "0": "Ignores observable UI behavior.",
+            "5": "Mentions props or tests generically.",
+            "8": "Names props/events, accessibility, selection/focus semantics, and rendering order or price formatting as preserved observables.",
+            "10": "Pairs each material suggestion with a focused interaction or accessibility verification."
+          }
+        }
+      ]
+    },
+    {
+      "id": "legacy-code-characterization-first",
+      "prompt": "Make the provided legacy pricing module more professional. It has no tests, and product says some odd edge cases are depended on. Explain and perform only what can be made safe in review-and-apply mode, then report evidence.",
+      "expected_output": "The agent establishes current behavior with characterization tests before non-trivial refactoring, preserves surprising rounding/error semantics, and limits work if it cannot run the code.",
+      "files": [
+        "evals/fixtures/python/legacy_price.py"
+      ],
+      "assertions": [
+        {
+          "criterion": "Characterization precedes non-trivial refactoring",
+          "threshold": 9,
+          "rubric": {
+            "0": "Refactors directly without a behavioral baseline.",
+            "5": "Recommends adding tests later.",
+            "9": "Captures and runs current success, edge/error, and side-effect behavior before non-trivial edits, or limits work when execution is unavailable.",
+            "10": "Uses stable public seams and avoids tests coupled to the internal structure being changed."
+          }
+        },
+        {
+          "criterion": "No disguised bug fix or unverifiable completion",
+          "threshold": 8,
+          "rubric": {
+            "0": "Corrects odd behavior as part of cleanup or claims equivalence without evidence.",
+            "5": "Says behavior is preserved but does not identify odd cases.",
+            "8": "Preserves observed rounding/error semantics, records suspected bugs separately, and reports exact checks or a partial status.",
+            "10": "Also compares before/after outcomes and states residual unobserved risk."
+          }
+        }
+      ]
+    },
+    {
+      "id": "boundary-feature-bug-architecture-request",
+      "prompt": "Implement Redis caching, fix the stale-price bug, and reorganize this monolith into microservices. While you are there, make all files follow Clean Architecture and run a craftsmanship pass.",
+      "expected_output": "The skill does not treat feature work, a bug fix, service selection, or architecture redesign as authorized craftsmanship; it separates or declines those scopes instead of proposing a rewrite.",
+      "assertions": [
+        {
+          "criterion": "Scope boundary is enforced",
+          "threshold": 9,
+          "rubric": {
+            "0": "Proceeds with caching, bug fixing, or microservice redesign as a refactor.",
+            "5": "Mentions risk but includes the work in one plan.",
+            "9": "Clearly separates feature, bug, provider, and architecture work from craftsmanship and does not act without a distinct authorized workflow and concrete code scope.",
+            "10": "Offers a minimal safe sequencing or clarification without implying that approval inside this skill authorizes architecture change."
+          }
+        },
+        {
+          "criterion": "No mechanical Clean Architecture enforcement",
+          "threshold": 9,
+          "rubric": {
+            "0": "Proposes mandatory layers/interfaces/repositories.",
+            "5": "Questions the rewrite but still suggests generic layers.",
+            "9": "Rejects architecture-by-checklist and requires evidence from actual code and a separate architecture task.",
+            "10": "Also explains that local convention and present complexity, not a named pattern, govern any later craftsmanship findings."
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -8,6 +8,7 @@ license information where applicable.
 
 | Skill | Category | Purpose |
 |---|---|---|
+| `code-craftsmanship-refactor` | General | Polish existing code for clarity, cohesion, organization, and useful documentation while preserving behavior. |
 | `chrome-devtools-wsl2` | General | Launch and attach Windows Chrome for browser automation from WSL2. |
 | `council` | Adapted | Run a structured, delegated, multi-perspective council. |
 | `user-trials` | General | Test products through grounded user personas operating browser, CLI, or API surfaces. |
@@ -96,6 +97,12 @@ node scripts/benchmark-skills.ts --participant /tmp/brainstorm-ideas --participa
 node scripts/evaluate-skills.ts --skill authoring-skills --eval migration-discovery
 node scripts/benchmark-skills.ts --participant /tmp/brainstorm-ideas --participant /tmp/other-brainstorm --evals /path/to/shared-evals.json --eval migration-discovery --eval boundary-case
 ```
+
+On a managed Codex host that rejects candidate shell commands before they can
+read staged skills or fixtures, add `--approve-for-me` to `evaluate-skills.ts`.
+This keeps the candidate in the workspace-write sandbox while routing eligible
+approval requests through auto-review. Do not combine it with a Codex
+`--sandbox` flag; the runner selects exactly one permission mode.
 
 `evaluate-skills.ts` and `benchmark-skills.ts` deliberately answer different
 questions:
