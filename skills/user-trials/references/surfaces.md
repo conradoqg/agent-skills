@@ -6,11 +6,21 @@ Read only the section for each surface in the current trial.
 
 - Prefer a clean or isolated browser context per persona. Use a real profile
   only when authenticated state is essential and the user accepts the exposure.
-- Capture the accessible page structure before acting; use screenshots when
-  layout, visual hierarchy, density, or aesthetics are part of the finding.
+- Capture the accessible page structure before acting and inspect the rendered
+  screen when judging appearance. A DOM or accessibility snapshot cannot prove
+  visual hierarchy, clipping, contrast, density, or aesthetics.
+- Save screenshots for material interface findings, including confusing copy,
+  business information, navigation, errors and feedback, not only visual defects.
+  Follow `visual-evidence.md` for capture, annotation and delivery.
 - Use the latest snapshot identifiers and record the label or visible cue that
   led to each action.
 - Keep viewport and product version consistent across comparable personas.
+- If the mission involves mobile, keyboard use or another interaction context,
+  exercise it explicitly or mark it untested. Do not infer accessibility
+  conformance or mobile usability from a desktop screenshot.
+- For delayed actions, record the feedback, observation window and any available
+  completion/download evidence. Distinguish "not available during this trial"
+  from "will never complete"; transport latency is not measured human effort.
 - Do not infer a click, navigation, loading state, or error from source code.
 
 ## CLI

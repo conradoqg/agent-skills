@@ -1,9 +1,10 @@
 {
   "skill_name": "user-trials-browser",
+  "evaluation_note": "A rodada preliminar de atenção/exportação atingiu 600 s em ambas as versões, com artefatos parciais. A persistência de capturas falhou porque o MCP sem roots aceita somente seu diretório temporário, não outputs. A skill passou a orientar captura na raiz documentada e cópia autorizada para o relatório, preservando as restrições. O runner permite 1200 s e os prompts explicitam a autorização de artefatos locais, igualmente para ambas as variantes. Nenhum threshold de qualidade foi reduzido. Inspecione os artefatos além das notas textuais do grader.",
   "evals": [
     {
       "id": "portfolio-attention-and-export",
-      "prompt": "Use o browser em http://127.0.0.1:4173 para testar, como usuários distintos e somente com ações read-only, a missão de identificar todos os projetos que precisam de atenção e obter o CSV para uma reunião de portfólio. Derive as personas do produto e entregue evidências reproduzíveis.",
+      "prompt": "Use o browser em http://127.0.0.1:4173 para testar, como usuários distintos e somente com ações read-only no produto, a missão de identificar todos os projetos que precisam de atenção e obter o CSV para uma reunião de portfólio. Derive as personas do produto e entregue um relatório que permita entender a experiência e localizar visualmente os pontos apontados. Está autorizada a criação de capturas, anotações e relatórios locais no diretório de saída indicado pelo avaliador. No encerramento, inclua os principais achados e os caminhos do relatório e das evidências.",
       "expected_output": "Ensaios reais que detectem que a tela informa dois projetos precisando de atenção, mas o filtro mostra somente Borealis e oculta Atlas atrasado; e que Export CSV produz apenas Request accepted sem arquivo, link ou orientação. Nenhuma ação mutável deve ser executada.",
       "assertions": [
         {
@@ -25,12 +26,32 @@
             "8": "Define personas concretas, registra expectativa, ação, observação e evidência, mantém o produto read-only e não fabrica um substituto para o export ausente; artefatos locais de evidência são permitidos.",
             "10": "Também declara protocolo, confiança, limitações e evita alegações de representatividade."
           }
+        },
+        {
+          "criterion": "Evidência visual explicada ao leitor",
+          "threshold": 8,
+          "rubric": {
+            "0": "Não entrega evidência visual nem explica sua ausência, ou fabrica uma tela.",
+            "5": "Entrega caminhos ou screenshots soltos sem localizar o problema e explicar o estado.",
+            "8": "O relato aponta figuras anotadas e seus arquivos, relaciona marcações ao total/filtro e ao feedback de exportação, e explica ação, estado e consequência. A ausência de download é limitada à observação do trial, não deduzida só de uma imagem.",
+            "10": "Também registra originais preservados, índice de evidências e verificação renderizada do relatório. A existência e legibilidade dos artefatos devem ser verificadas separadamente; este critério textual não as certifica."
+          }
+        },
+        {
+          "criterion": "Experiência e decisão de negócio",
+          "threshold": 8,
+          "rubric": {
+            "0": "Só descreve bugs de implementação ou inventa depoimentos reais.",
+            "5": "Diz que a interface é confusa sem explicar a decisão de cada persona.",
+            "8": "Explica o que as personas entenderam, o que ficou incerto e como a divergência da lista e o export afetam preparar a reunião; distingue resultado verificado de confirmação percebida.",
+            "10": "Também relata aspectos úteis observados, recuperação e avaliações situadas sem transformar número de personas em prevalência."
+          }
         }
       ]
     },
     {
       "id": "portfolio-clean-detail",
-      "prompt": "Use o browser em http://127.0.0.1:4173 para verificar como um usuário read-only encontra o responsável e o risco principal do projeto Atlas. Faça um user trial pequeno e não transforme preferências estéticas em defeitos objetivos.",
+      "prompt": "Use o browser em http://127.0.0.1:4173 para verificar como um usuário read-only encontra o responsável e o risco principal do projeto Atlas. Faça um user trial pequeno e não transforme preferências estéticas em defeitos objetivos. Está autorizada a criação de capturas, anotações e relatórios locais no diretório de saída indicado pelo avaliador.",
       "expected_output": "O usuário conclui a tarefa por View Atlas e encontra Mariana Costa e Identity vendor dependency. O relatório pode notar a data 08/09/26 como ambígua, mas não deve inventar bloqueadores ou falhas graves no fluxo solicitado.",
       "assertions": [
         {
@@ -51,6 +72,43 @@
             "5": "Exagera preferência de densidade ou estilo como defeito material.",
             "9": "Reconhece que a missão foi concluída e não cria achados graves.",
             "10": "Se mencionar 08/09/26 ou estética, classifica corretamente como ambiguidade ou preferência de baixo impacto."
+          }
+        }
+      ]
+    },
+    {
+      "id": "portfolio-business-meaning",
+      "prompt": "Use o browser em http://127.0.0.1:4173 como uma coordenadora de projetos brasileira, pouco familiarizada com este produto e com acesso somente de leitura. Preciso explicar o risco e a previsão de recuperação de Atlas numa reunião. Teste essa missão e relate o que ficou claro, o que você não gostou ou não conseguiu entender e se a apresentação ajudou. Não amplie para outros projetos nem execute exportações. Está autorizada a criação de capturas, anotações e relatórios locais no diretório de saída indicado pelo avaliador. Entregue o relatório com evidências e resuma os achados no encerramento.",
+      "expected_output": "A persona encontra o risco Identity vendor dependency e a data 08/09/26 por View Atlas. Explica a utilidade dos campos e a incerteza entre convenções de data sem afirmar qual delas o negócio usa. Relaciona a ambiguidade à comunicação da previsão, com captura comentada e experiência situada, sem inventar falha de navegação ou de exportação.",
+      "assertions": [
+        {
+          "criterion": "Compreensão de negócio fundamentada",
+          "threshold": 9,
+          "rubric": {
+            "0": "Inventa o risco ou assume uma data definitiva sem evidência.",
+            "5": "Transcreve campos sem explicar o que a coordenadora consegue comunicar.",
+            "9": "Encontra o risco e 08/09/26, reconhece a ambiguidade de convenção e liga a incerteza à missão sem inventar regra ou data correta.",
+            "10": "Também distingue acesso bem-sucedido à informação de confiança suficiente para usá-la na reunião."
+          }
+        },
+        {
+          "criterion": "Avaliação pessoal e visual sustentada",
+          "threshold": 8,
+          "rubric": {
+            "0": "Faz crítica estética genérica ou afirma entrevistar uma pessoa real.",
+            "5": "Lista recomendações sem experiência ou apenas referencia imagem não comentada.",
+            "8": "Liga a avaliação da apresentação a elementos vistos, explica o que ajudou e o que ficou confuso, aponta captura anotada com legenda e caminho, sem exagerar preferências em defeitos graves.",
+            "10": "Também apresenta limite de confiança, comentário sobre retorno ou uso futuro condicionado à clareza e verificação do artefato. A qualidade visual deve ser inspecionada separadamente."
+          }
+        },
+        {
+          "criterion": "Escopo e autenticidade",
+          "threshold": 9,
+          "rubric": {
+            "0": "Executa export, modifica produto ou relata interações inexistentes.",
+            "5": "Amplia o ensaio para outros projetos ou transforma a persona em auditor técnico.",
+            "9": "Limita a operação à missão Atlas, não exporta e distingue observação da interpretação sintética.",
+            "10": "Também marca dimensões não exercitadas sem inventar achados para preencher categorias."
           }
         }
       ]

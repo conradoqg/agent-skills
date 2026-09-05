@@ -14,11 +14,17 @@ biography. Define only fields that can affect the mission:
 | Permissions | What the person can see and change |
 | Success | Observable completion criterion |
 | Lens | What this person notices because it affects their goal |
+| Starting mental model | What this person expects the product's terms and actions to mean, based on prior experience or visible cues |
 | Knowledge boundary | Information a real user in this situation would know |
 
 An archetype is a reusable behavioral pattern such as "cautious newcomer" or
 "high-frequency operator". A persona instantiates an archetype for a particular
 product, role, mission, and context.
+
+Distinguish product facts from assumptions used to configure the trial. Include
+language, device, input method or domain vocabulary only when they could change
+the journey and can actually be exercised. Do not infer behavior from demographic
+stereotypes, invent a biography, or assume the persona already knows the UI.
 
 ## Derive candidates from product evidence
 
@@ -37,7 +43,8 @@ unless product evidence connects that role or lens to a real workflow.
 ## Select the panel
 
 Construct a coverage matrix with candidates as rows and material
-actor/permission-plus-journey combinations as columns. Select the smallest set
+actor/permission-plus-journey combinations within the user's scope as columns.
+Select the smallest set
 whose union covers every column. Prefer a persona that covers several compatible
 journeys, but never merge personas with conflicting permissions, knowledge, or
 success criteria.
