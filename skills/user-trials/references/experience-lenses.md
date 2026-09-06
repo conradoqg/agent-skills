@@ -23,6 +23,26 @@ structure rather than demanding screenshots.
 
 ## Keep a user's perspective
 
+For a consequential decision, probe four questions through use: does the persona
+know what to achieve next, notice an available action, connect that action to the
+goal, and recognize progress afterward? Record the actual cue or missing cue,
+not a checklist score. Do not coach a persona with these answers in advance.
+
+For dependent journeys, follow the result across boundaries that matter to the
+mission: selection into approval, approval into execution, execution into a saved
+result or artifact, and the next role's use of it. Compare identifiers, scope,
+units and item-level outcomes where a total or confirmation could mislead a
+decision. Reload or re-query when persistence matters. For asynchronous work,
+distinguish acceptance from terminal job state and terminal state from every item
+succeeding; poll within the charter rather than indefinitely.
+
+Probe recovery only when authorized and discoverable: preserve valid work,
+correct known inputs, retry the failed portion, then verify the resulting state.
+Do not invent missing business data. A permission restriction, dense expert view
+or intentionally deferred decision can be appropriate; assess its explanation
+and consequence before calling it a defect. An undefined term alone establishes
+uncertainty, not proof that its underlying calculation is wrong.
+
 - State the expectation in ordinary task language: "I expect this total to cover
   the rows I am about to export," not "the filter predicate is wrong."
 - Explain dislikes specifically: what felt unclear, excessive, missing or

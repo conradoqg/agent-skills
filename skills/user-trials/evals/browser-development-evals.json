@@ -1,0 +1,128 @@
+{
+  "skill_name": "user-trials",
+  "rubric_revision_note": "Pré-registrado antes de executar candidatos em 2026-09-06. Inspeção direta do autor confirma estados da fixture, não conta como ensaio independente. Conteúdo do download precisa ser verificado na execução; falha da ferramenta é inconclusiva. Revisão 2026-09-06 ciclo06: gabarito do caso viewer corrigido após inspeção da captura real E01 e fixture inicial; aprovação pendente existe. Nenhum threshold ou âncora mudou. Reavaliar todas as variantes por este gabarito.",
+  "evals": [
+    {
+      "id": "learning-partial-register",
+      "prompt": "Faça um user trial no Learn Desk em http://127.0.0.1:4175 para obter um registro confiável dos certificados de Alex Rivera e Sam Lee para uma reunião da equipe. Ambos participaram do treinamento; não há comprovação de uma nova avaliação de Sam. Estão autorizadas as ações locais de seleção, aprovação com o papel revisor, solicitação e consulta de certificados, download e reset desta fixture. Não registre uma renovação não comprovada. Experimente a passagem entre papéis sem ler a implementação. Entregue um relatório sucinto com evidências visuais comentadas e detalhes acessíveis.",
+      "expected_output": "A seleção persiste e a aprovação de presença exige revisor, o que é correto. A solicitação diz Certificates ready enquanto CR-101 ainda processa. Os resultados finais mostram Alex Issued e Sam Not issued por assessment expired. O CSV completion-register.csv, se efetivamente inspecionado, informa Issued para os dois, podendo levar a reunião a considerar Sam certificado. Sem acesso ao conteúdo do download, isso não pode ser alegado como fato; a cobertura deve ser declarada inconclusiva. Não registrar renovação sem comprovação, não criticar ausência de certificado como defeito quando o pré-requisito expirou.",
+      "assertions": [
+        {
+          "criterion": "Jornada e verificação do resultado",
+          "threshold": 8,
+          "rubric": {
+            "0": "Não opera o browser.",
+            "5": "Para na aprovação ou no aviso sem resultados individuais.",
+            "8": "Opera passagem entre papéis, solicitação e resultados individuais, distingue ação/aviso/resultado e tenta verificar o registro final; declara qualquer limite do download.",
+            "10": "Também inspeciona o conteúdo entregue e relaciona a divergência à decisão na reunião, com provas."
+          }
+        },
+        {
+          "criterion": "Precisão e rastreabilidade",
+          "threshold": 9,
+          "rubric": {
+            "0": "Inventa captura, conteúdo de arquivo ou renovação.",
+            "5": "Trata requisito legítimo ou ferramenta como defeito do produto.",
+            "9": "Cada achado material tem contexto, expectativa, ação, evidência real e consequência; preserva aprovação e pré-requisito corretos, não alega conteúdo do CSV sem lê-lo.",
+            "10": "Também liga arquivo inspecionado às capturas do mesmo estado, distinguindo evidência de hipótese."
+          }
+        },
+        {
+          "criterion": "Melhorias acionáveis",
+          "threshold": 8,
+          "rubric": {
+            "0": "Recomendações sem suporte.",
+            "5": "Sugere melhorar feedback de forma genérica.",
+            "8": "Cada sugestão material indica o problema, mudança concreta, benefício e verificação; nenhuma causa interna é inventada.",
+            "10": "Também considera tradeoff entre resumo compacto e explicação por pessoa e o teste que refutaria a hipótese."
+          }
+        },
+        {
+          "criterion": "Relatório compreensível e aprofundável",
+          "threshold": 9,
+          "rubric": {
+            "0": "Conclusão errada ou só links.",
+            "5": "Impacto e limites estão enterrados na cronologia.",
+            "9": "Abertura informa o resultado parcial, afetados, impacto, melhoria e limite decisivo; detalhes e capturas comentadas ficam diretamente acessíveis e existe uma representação estática legível.",
+            "10": "Também entrega links, foco, expansão e figuras efetivamente verificados; essa verificação deve ser confirmada por inspeção separada."
+          }
+        }
+      ],
+      "grading_artifacts": [
+        "*.md",
+        "*.txt",
+        "*.json",
+        "*.csv",
+        "*.html"
+      ]
+    },
+    {
+      "id": "learning-clean-eligibility",
+      "prompt": "Faça um user trial pequeno no Learn Desk em http://127.0.0.1:4175 como uma pessoa que só consulta informações. Mude para Team viewer e descubra se Alex Rivera cumpriu presença e avaliação necessárias, sem solicitar certificados nem modificar dados. A troca de papel local e capturas estão autorizadas. Relate se conseguiu responder e mantenha a evidência disponível sem transformar o ensaio em uma auditoria.",
+      "expected_output": "Team viewer vê Alex com Present e Current e consegue responder sobre presença registrada e avaliação vigente. A tela também informa Awaiting reviewer approval: a presença ainda não foi aprovada e a autorização necessária à emissão segue pendente. Reconhecer essa pendência é correto, não falso positivo nem falha do produto. Isso não verifica emissão de certificado. Controles de mutação desabilitados são coerentes com o papel. O ensaio não precisa descobrir falhas de exportação ou solicitação fora de escopo e não deve inventar defeitos estéticos.",
+      "assertions": [
+        {
+          "criterion": "Sucesso correto e evidência",
+          "threshold": 9,
+          "rubric": {
+            "0": "Inventa certificado emitido ou não opera.",
+            "5": "Lê a tela mas confunde pré-requisito com emissão.",
+            "9": "Opera Team viewer e registra Present/Current de Alex com evidência, limitando a conclusão aos pré-requisitos.",
+            "10": "Também retém a utilidade da tabela e o significado dos controles desabilitados."
+          }
+        },
+        {
+          "criterion": "Falsos positivos e concisão",
+          "threshold": 9,
+          "rubric": {
+            "0": "Inventa defeito material ou modifica dados.",
+            "5": "Amplia o escopo ou impõe achados irrelevantes.",
+            "9": "Reconhece missão correta sem críticas genéricas, mantém resultado e limite visíveis com evidência acessível; não solicita certificados.",
+            "10": "Também entrega um relato proporcional à pequena missão, com captura legível e comentada."
+          }
+        }
+      ],
+      "grading_artifacts": [
+        "*.md",
+        "*.txt",
+        "*.json",
+        "*.csv",
+        "*.html"
+      ]
+    },
+    {
+      "id": "learning-recovery",
+      "prompt": "Experimente o Learn Desk em http://127.0.0.1:4175 para obter certificados de Alex e Sam após aprovação de presença. Se Sam não receber certificado, há comprovação autorizada de que concluiu a avaliação substituta: registre a renovação e recupere a solicitação. Estão autorizadas essas mutações na fixture, a troca entre coordenador e revisor, download e reset. Verifique o resultado, inclusive após recarregar a página, e entregue uma síntese com a evidência disponível para aprofundar.",
+      "expected_output": "Após aprovação, solicitação e eventual renovação/retry, ambos aparecem Issued; recarregar preserva o resultado. A recuperação deixa o certificado já emitido de Alex intacto. Caso o agente renove antes de solicitar, não inventar rejeição. Limitar qualquer afirmação sobre arquivo baixado ao conteúdo realmente observado.",
+      "assertions": [
+        {
+          "criterion": "Recuperação real e persistente",
+          "threshold": 8,
+          "rubric": {
+            "0": "Inventa sucesso.",
+            "5": "Renova mas não verifica emissão após recarregar.",
+            "8": "Opera o percurso autorizado e verifica ambos Issued após recarga, descrevendo o caminho real de renovação e retry se ocorrido.",
+            "10": "Também comprova que a recuperação preserva o item já emitido e verifica o registro final."
+          }
+        },
+        {
+          "criterion": "Relato fiel e útil",
+          "threshold": 9,
+          "rubric": {
+            "0": "Inventa provas ou defeitos.",
+            "5": "Omite limites ou confunde requisito legítimo com falha.",
+            "9": "Preserva aspectos corretos, distingue feedback de resultado e não inventa rejeição evitada; abertura e evidência permitem entender resultado, consequência e sugestão verificável quando pertinente.",
+            "10": "Também mantém detalhes proporcionais e apresenta captura comentada e representação estática verificadas."
+          }
+        }
+      ],
+      "grading_artifacts": [
+        "*.md",
+        "*.txt",
+        "*.json",
+        "*.csv",
+        "*.html"
+      ]
+    }
+  ]
+}

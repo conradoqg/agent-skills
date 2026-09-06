@@ -4,10 +4,24 @@ import { spawn } from "node:child_process";
 import { resolve } from "node:path";
 
 const root = resolve(import.meta.dirname, "../../..");
-const fixture = resolve(import.meta.dirname, "fixtures/browser-product/server.mjs");
+// Harness-only options are removed before forwarding evaluator arguments.
+const evaluationArgs = [];
+let fixture = resolve(import.meta.dirname, "fixtures/browser-product/server.mjs");
+let app = "http://127.0.0.1:4173";
+for (let index = 2; index < process.argv.length; index += 1) {
+  const option = process.argv[index];
+  if (option === "--fixture" || option === "--app") {
+    const value = process.argv[++index];
+    if (!value || value.startsWith("--")) throw new Error(`Missing value for ${option}`);
+    if (option === "--fixture") fixture = resolve(root, value);
+    else app = value;
+  } else evaluationArgs.push(option);
+}
+if (new URL(app).protocol !== 'http:' || !['127.0.0.1', 'localhost', '[::1]'].includes(new URL(app).hostname)) {
+  throw new Error('Browser fixtures must use a loopback HTTP URL.');
+}
 const launcher = resolve(root, "skills/chrome-devtools-wsl2/scripts/launch-chrome-debug.sh");
 const endpoint = "http://127.0.0.1:9333";
-const app = "http://127.0.0.1:4173";
 const nativeWindows = process.platform === "win32";
 
 function run(command, args, options = {}) {
@@ -42,6 +56,13 @@ async function closeDedicatedChrome() {
   } catch {}
 }
 
+let occupied = false;
+try {
+  await fetch(`${app}/health`, { signal: AbortSignal.timeout(1000) });
+  occupied = true;
+} catch {}
+if (occupied) throw new Error(`Fixture address already in use: ${app}. Finish its owning run first.`);
+
 const server = spawn(process.execPath, [fixture], { cwd: root, windowsHide: true, stdio: ["ignore", "pipe", "inherit"] });
 server.stdout.pipe(process.stdout);
 
@@ -71,9 +92,14 @@ try {
     "--workspace", ".skill-evals/user-trials-browser",
     "--codex-config", `mcp_servers.chrome-devtools.command=${JSON.stringify(nativeWindows ? "cmd" : "npx")}`,
     "--codex-config", `mcp_servers.chrome-devtools.args=${JSON.stringify(mcpArgs)}`,
+    // Without negotiated MCP roots, file writes are limited to os.tmpdir().
+    // Keep that guard and narrow its root to this candidate's evidence directory.
+    ...["TEMP", "TMP", "TMPDIR"].flatMap(name => [
+      "--codex-config", `mcp_servers.chrome-devtools.env.${name}="\${output_dir}"`
+    ]),
     "--timeout-ms", "1200000",
     "--concurrency", "1",
-    ...process.argv.slice(2)
+    ...evaluationArgs
   ]);
   exitCode = evaluation.code ?? 1;
 } finally {

@@ -58,7 +58,7 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } fr
 import { dirname, join } from "node:path";
 
 const args = process.argv.slice(2);
-const allArgs = args.join(" ");
+const allArgs = args.join(" ") + (args.at(-1) === "-" ? readFileSync(0, "utf8") : "");
 let output = "";
 let schema = "";
 let skillDir = "";
@@ -146,13 +146,20 @@ process.env.FAKE_CODEX_LOG = codexLog;
 const first = await run("node", [
   "scripts/evaluate-skills.ts", "--skill", skill, "--workspace", workspace,
   "--codex-bin", fakeCodex, "--codex-config", "features.example=true",
-  "--codex-config", "candidate.label=fixture", "--approve-for-me", "--iteration", "1"
+  "--codex-config", "candidate.label=fixture",
+  "--codex-config", 'mcp_servers.chrome-devtools.env.TEMP="${output_dir}"',
+  "--approve-for-me", "--iteration", "1"
 ]);
 assert.equal(first.code, 0, first.stderr);
 const firstCodexLog = await readFile(codexLog, "utf8");
 assert.match(firstCodexLog, /--approve-for-me/);
 assert.doesNotMatch(firstCodexLog, /--sandbox workspace-write/);
 assert.match(firstCodexLog, /--config features\.example=true --config candidate\.label=fixture/);
+for (const variant of ["without_skill", "with_skill"]) {
+  const evidenceDir = join(workspace, "iteration-1", "eval-one", variant, "outputs");
+  assert.ok(firstCodexLog.includes(`--config mcp_servers.chrome-devtools.env.TEMP=${JSON.stringify(evidenceDir)}`));
+}
+assert.ok(!firstCodexLog.includes('${output_dir}'));
 const benchmark = JSON.parse(await readFile(join(workspace, "iteration-1", "evaluation.json"), "utf8"));
 assert.equal(benchmark.summary.with_skill.passed, 1);
 assert.deepEqual(benchmark.summary.with_skill.task_token_usage, {

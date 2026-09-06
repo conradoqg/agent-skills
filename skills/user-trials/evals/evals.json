@@ -38,6 +38,13 @@
             "10": "Também distingue fatos do produto de hipóteses sobre familiaridade e expectativas das personas."
           }
         }
+      ],
+      "grading_artifacts": [
+        "*.md",
+        "*.txt",
+        "*.json",
+        "*.csv",
+        "*.html"
       ]
     },
     {
@@ -76,6 +83,13 @@
             "10": "Também preserva comportamento útil observado e diferenças justificadas de familiaridade, sem inventar tempo humano, emoções ou regras de negócio."
           }
         }
+      ],
+      "grading_artifacts": [
+        "*.md",
+        "*.txt",
+        "*.json",
+        "*.csv",
+        "*.html"
       ]
     },
     {
@@ -114,6 +128,13 @@
             "10": "Também preserva pontos claros observados e separa desconhecimento do negócio de defeito comprovado, sem forçar evidência visual."
           }
         }
+      ],
+      "grading_artifacts": [
+        "*.md",
+        "*.txt",
+        "*.json",
+        "*.csv",
+        "*.html"
       ]
     },
     {
@@ -131,6 +152,13 @@
             "10": "Também encaminha de forma concisa para Council ou responde diretamente sem teatro."
           }
         }
+      ],
+      "grading_artifacts": [
+        "*.md",
+        "*.txt",
+        "*.json",
+        "*.csv",
+        "*.html"
       ]
     }
   ]

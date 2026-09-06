@@ -41,7 +41,9 @@ inventing an interaction.
 - Before operating, read `references/experience-lenses.md` and the selected
   sections of `references/surfaces.md`. For visual interfaces, also read
   `references/visual-evidence.md` so evidence is captured during the trial.
-- Read `references/report-template.md` before synthesizing completed trials.
+- Defer `references/report-template.md` until trial evidence is complete, then
+  read it immediately before synthesis; keep the decision summary visible and
+  evidence one step away.
 
 ## Workflow
 
@@ -57,6 +59,12 @@ the coordinator, but it is privileged test-design context: never reveal
 implementation details to a trial persona unless a real user in that role would
 know them.
 
+Keep that map compact: product promise, role, intended outcome, consequential
+decision, prerequisite or handoff, and observable proof of completion. Separate
+documented facts from unknown business rules. Select missions that exercise
+different decisions or consequences, not merely more screens. Use the probing
+guidance in `references/experience-lenses.md` for dependent or asynchronous work.
+
 ### 2. Build a coverage-driven panel
 
 Use the persona model to select the smallest panel that covers every materially
@@ -68,9 +76,9 @@ There is no fixed panel size.
 Treat user-supplied personas as constraints, then fill missing fields. Do not
 accept a title or adjective alone as a complete persona.
 
-- For up to six personas, continue when the requested work is otherwise safe.
-- Above six, show the coverage matrix and ask the user to approve or narrow the
-  panel before operating the product.
+Keep the panel within the requested scope and effort. Explain what each added
+persona tests that the existing panel cannot; do not expand it merely to collect
+more opinions.
 
 ### 3. Write the trial charter
 
@@ -110,8 +118,17 @@ knowledge before the trial ends.
 
 Delegates return both the trial record and saved evidence with IDs and paths;
 transient tool screenshots alone may be inaccessible to the coordinator. Use
-separate sessions and data for parallel trials. If the tool shares a tab,
-profile, or mutable state, serialize access and reset it between personas.
+separate sessions and data for independent parallel trials. Distinguish these
+from roles cooperating on one mission: preserve that mission's state across a
+handoff and transfer only information a real user could receive. Serialize access
+to shared mutable state. Reset between independent attempts, never in the middle
+of a dependent journey. Disclose a cooperative handoff as such, not independent
+corroboration.
+
+Ask each delegate for one concise record with evidence paths and a debrief, not
+a second full report. Synthesize once; revisit an observation only when resolving
+it could change the conclusion or recommendation. Stop when the mission's outcome
+and material uncertainty are established or the charter's effort bound is reached.
 
 When delegation is unavailable, run personas sequentially, resetting product
 state and re-establishing each knowledge boundary. Disclose the fallback and any
@@ -142,6 +159,10 @@ what the evidence verifies: opening a success screen may not produce the intende
 business outcome or usable deliverable. Briefly debrief what was clear, what was
 unwelcome or confusing, what helped, and what remains uncertain. Keep observation,
 inference, preference, tool failure, and recommendation distinct.
+Name the furthest verified result precisely: accepted request, completed job,
+persisted change, usable artifact, or downstream outcome. Check the resulting
+artifact or state through a permitted user surface when the mission depends on
+it; if unavailable, carry that limit into the report's opening.
 
 For material interface findings, capture the relevant state at discovery time
 and deliver it with visual annotations and commentary as described in
@@ -175,6 +196,13 @@ into an unsolicited redesign or repairing the product.
 
 Before sending the report, verify:
 
+- Read only the first paragraph of the final message: for a material failure,
+  does it say what the affected user cannot decide or finish, or could do
+  incorrectly? A description of the bad result alone is not its consequence.
+  Put that operational effect here with the priority and decisive limit. For a
+  clean mission, give the supported outcome and its boundary without inventing
+  a problem. Do not rely on a later table or appendix to complete this paragraph.
+
 - Every material finding links the persona's expectation, actual evidence and
   consequence; severity follows mission impact, not aesthetic dislike.
 - Each persona has an outcome, a situated assessment, and confidence or limits.
@@ -183,6 +211,14 @@ Before sending the report, verify:
   through evidence or marked untested; no defect quota is imposed.
 - Screenshots and annotations are legible, mapped to findings, and accessible in
   the delivered report. Missing captures or unverified outcomes are explicit.
+- The first layer states scope, outcome, affected users, consequential findings,
+  improvements and decisive limits without requiring the reader to reconstruct
+  persona sessions. Each material suggestion has a concrete change, expected
+  benefit and observable check; evidence and detailed steps are directly reachable.
+- The exact targets written in the actual report's links, disclosures and static
+  representation were checked,
+  or their precise verification gaps are declared. Concision must not hide impact
+  or uncertainty that changes the conclusion.
 - The report states that these are synthetic trials, lists coverage gaps, and
   does not imply real-user testimony, prevalence or exhaustive validation.
 
