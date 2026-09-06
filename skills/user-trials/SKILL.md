@@ -5,8 +5,9 @@ description: >
   actually operating a product through a browser, CLI, or API, or wants useful
   personas inferred from a product or codebase for experiential testing.
   Triggers include "test this as different users", "click through and
-  critique", "what would users expect", persona-based usability testing, and
-  developer-experience trials. Do not use for hypothetical expert debate
+  critique", "what would users expect", "what is confusing or frustrating",
+  persona-based usability testing of visual presentation, business meaning and
+  flows, and developer-experience trials. Do not use for hypothetical expert debate
   without an operable product, deterministic QA/security/performance audits, or
   claims about real-user research.
 ---
@@ -16,6 +17,9 @@ description: >
 Run independent, evidence-backed product trials from the viewpoints of users
 whose goals and constraints are grounded in the product. The result is a set of
 observations and situated opinions, not simulated market research.
+Explain what each persona understood, liked, disliked, trusted, or could not
+decide, and how the operated product led to that assessment. Task completion
+alone does not establish a good experience.
 
 ## Resolve the request
 
@@ -34,8 +38,12 @@ inventing an interaction.
 ## Read the relevant references
 
 - Read `references/persona-model.md` before deriving or validating a panel.
-- Read `references/surfaces.md` only for the surfaces selected for this run.
-- Read `references/report-template.md` before synthesizing completed trials.
+- Before operating, read `references/experience-lenses.md` and the selected
+  sections of `references/surfaces.md`. For visual interfaces, also read
+  `references/visual-evidence.md` so evidence is captured during the trial.
+- Defer `references/report-template.md` until trial evidence is complete, then
+  read it immediately before synthesis; keep the decision summary visible and
+  evidence one step away.
 
 ## Workflow
 
@@ -51,25 +59,41 @@ the coordinator, but it is privileged test-design context: never reveal
 implementation details to a trial persona unless a real user in that role would
 know them.
 
+Keep that map compact: product promise, role, intended outcome, consequential
+decision, prerequisite or handoff, and observable proof of completion. Separate
+documented facts from unknown business rules. Select missions that exercise
+different decisions or consequences, not merely more screens. Use the probing
+guidance in `references/experience-lenses.md` for dependent or asynchronous work.
+
 ### 2. Build a coverage-driven panel
 
 Use the persona model to select the smallest panel that covers every materially
-distinct actor/permission boundary and critical journey. Add a contrast in
+distinct actor/permission boundary and critical journey within the requested
+scope. A small task may need only one persona. Add a contrast in
 experience, pressure, or evaluative lens only when it could change behavior.
 There is no fixed panel size.
 
 Treat user-supplied personas as constraints, then fill missing fields. Do not
 accept a title or adjective alone as a complete persona.
 
-- For up to six personas, continue when the requested work is otherwise safe.
-- Above six, show the coverage matrix and ask the user to approve or narrow the
-  panel before operating the product.
+Keep the panel within the requested scope and effort. Explain what each added
+persona tests that the existing panel cannot; do not expand it merely to collect
+more opinions.
 
 ### 3. Write the trial charter
 
 For each persona, define one or more concrete missions, starting state, success
-condition, allowed actions, prohibited actions, and reset strategy. Share the
-charter in a concise progress update. Continue without another approval when
+condition, allowed actions, prohibited actions, reset strategy, and a bounded
+effort or stop condition. Give an outcome to achieve, not a route or a list of
+suspected defects; provide steps only if the user is testing that exact route.
+Identify the allowed local evidence/report directory separately from permissions
+to mutate the product.
+For visual trials, verify that one discovery-state capture can actually be saved
+using `references/visual-evidence.md` before delegating. Give delegates the
+verified capture location and the report directory; do not assume their browser
+tool can write directly into the report directory. This is harness setup, not
+persona evidence or knowledge of the task's outcome.
+Share the charter in a concise progress update. Continue without another approval when
 the user already requested testing and every action is read-only or safely
 isolated.
 
@@ -78,20 +102,38 @@ endpoint as allowed and read-only in the charter. That is harness authorization,
 not persona knowledge: tell the persona that the action is permitted, but do not
 reveal its expected result, implementation, or hidden recovery path.
 
-Pause for authorization before using real credentials or performing purchases,
-publishing, deletion, production mutation, or external communication. A broad
-request to "test everything" does not authorize those actions.
+Before using real credentials or performing purchases, publishing, deletion,
+production mutation, or external communication, confirm that the specific action
+is already authorized; otherwise ask. A broad request to "test everything" does
+not authorize those actions. Do not ask again for authorization already given.
 
 ### 4. Execute independently
 
 Use one independent delegate per persona when delegation is available. Run in
 batches if concurrency is limited. Each delegate receives only its persona
-card, mission, user-visible context, target, safety boundaries, and the trial
-record below. Do not share other personas' results or source-derived privileged
+card, mission, user-visible context, target, safety boundaries, the trial
+record below and the selected surface's evidence-capture requirements. Do not
+share other personas' results or source-derived privileged
 knowledge before the trial ends.
 
-When delegation is unavailable, run personas sequentially with clearly reset
-context and state, then disclose that fallback. Do not simulate clicks,
+Delegates return both the trial record and saved evidence with IDs and paths;
+transient tool screenshots alone may be inaccessible to the coordinator. Use
+separate sessions and data for independent parallel trials. Distinguish these
+from roles cooperating on one mission: preserve that mission's state across a
+handoff and transfer only information a real user could receive. Serialize access
+to shared mutable state. Reset between independent attempts, never in the middle
+of a dependent journey. Disclose a cooperative handoff as such, not independent
+corroboration.
+
+Ask each delegate for one concise record with evidence paths and a debrief, not
+a second full report. Synthesize once; revisit an observation only when resolving
+it could change the conclusion or recommendation. Stop when the mission's outcome
+and material uncertainty are established or the charter's effort bound is reached.
+
+When delegation is unavailable, run personas sequentially, resetting product
+state and re-establishing each knowledge boundary. Disclose the fallback and any
+prior exposure: rephrasing a persona does not erase the evaluator's knowledge or
+provide independent context. Do not simulate clicks,
 commands, responses, or errors: every claimed interaction needs tool evidence.
 
 For each meaningful step, record:
@@ -100,9 +142,32 @@ For each meaningful step, record:
 mission -> expectation before action -> action -> observed result -> evidence
 ```
 
-Also record hesitation, recovery, task impact, confidence, and the persona's
-opinion. Keep observation, inference, preference, tool failure, and
-recommendation distinct.
+Use visible labels, affordances, documentation and feedback to choose the next
+action. Record a brief expectation before consequential actions and an immediate
+reaction afterward; do not reconstruct all expectations after seeing the result.
+When stuck, try plausible user-visible recovery within the charter, then record
+abandonment or failure. Do not use implementation knowledge to rescue the task.
+
+Apply the experience lenses to encountered states, without forcing a finding in
+each category. Record helpful moments as well as hesitation, recovery, task
+impact, confidence, and situated opinions. Tie any claimed hesitation to a
+visible ambiguity, detour or repeated action. Do not invent human emotions,
+quotes, dwell times or satisfaction scores from agent execution.
+
+At the end of each mission, distinguish what the persona believes happened from
+what the evidence verifies: opening a success screen may not produce the intended
+business outcome or usable deliverable. Briefly debrief what was clear, what was
+unwelcome or confusing, what helped, and what remains uncertain. Keep observation,
+inference, preference, tool failure, and recommendation distinct.
+Name the furthest verified result precisely: accepted request, completed job,
+persisted change, usable artifact, or downstream outcome. Check the resulting
+artifact or state through a permitted user surface when the mission depends on
+it; if unavailable, carry that limit into the report's opening.
+
+For material interface findings, capture the relevant state at discovery time
+and deliver it with visual annotations and commentary as described in
+`references/visual-evidence.md`. Do not postpone evidence collection until the
+report; transient states may be gone.
 
 Do not repair the product or recreate a missing product deliverable during the
 trial. That turns an observed failure into an unrequested workaround and can
@@ -124,8 +189,38 @@ away minority reactions, or claim demographic validity. Architecture and
 roadmap implications are hypotheses unless the user explicitly requests a
 subsequent deliberation.
 
-Before sending the report, verify that every persona result includes confidence
-or limitations and that the synthesis states the synthetic-trial limitation.
+Lead with the experience and mission outcome, not implementation diagnoses.
+Explain conflicting mental models or preferences without forcing consensus.
+Connect improvement hypotheses to specific findings, without turning the report
+into an unsolicited redesign or repairing the product.
+
+Before sending the report, verify:
+
+- Read only the first paragraph of the final message: for a material failure,
+  does it say what the affected user cannot decide or finish, or could do
+  incorrectly? A description of the bad result alone is not its consequence.
+  Put that operational effect here with the priority and decisive limit. For a
+  clean mission, give the supported outcome and its boundary without inventing
+  a problem. Do not rely on a later table or appendix to complete this paragraph.
+
+- Every material finding links the persona's expectation, actual evidence and
+  consequence; severity follows mission impact, not aesthetic dislike.
+- Each persona has an outcome, a situated assessment, and confidence or limits.
+  Successful paths and useful product behavior are retained when observed.
+- Relevant visual, language, business, flow and trust dimensions are addressed
+  through evidence or marked untested; no defect quota is imposed.
+- Screenshots and annotations are legible, mapped to findings, and accessible in
+  the delivered report. Missing captures or unverified outcomes are explicit.
+- The first layer states scope, outcome, affected users, consequential findings,
+  improvements and decisive limits without requiring the reader to reconstruct
+  persona sessions. Each material suggestion has a concrete change, expected
+  benefit and observable check; evidence and detailed steps are directly reachable.
+- The exact targets written in the actual report's links, disclosures and static
+  representation were checked,
+  or their precise verification gaps are declared. Concision must not hide impact
+  or uncertainty that changes the conclusion.
+- The report states that these are synthetic trials, lists coverage gaps, and
+  does not imply real-user testimony, prevalence or exhaustive validation.
 
 ## Gotchas
 

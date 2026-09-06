@@ -1,5 +1,6 @@
 {
   "skill_name": "user-trials",
+  "rubric_revision_note": "Após a primeira execução preliminar, o grader penalizou o baseline CLI por não apresentar opiniões divergentes. O critério foi corrigido para aceitar concordância fundamentada e avaliar a preservação das perspectivas, sem exigir divergência artificial. Nenhum threshold foi alterado; a comparação com a versão anterior deve usar esta mesma rubrica para todas as variantes.",
   "evals": [
     {
       "id": "derive-panel-from-source",
@@ -26,7 +27,24 @@
             "8": "Define papel, objetivo, contexto, permissões e critério de sucesso para cada persona.",
             "10": "Também declara limites de conhecimento e evita duplicações de cobertura."
           }
+        },
+        {
+          "criterion": "Descoberta sem experiência inventada",
+          "threshold": 9,
+          "rubric": {
+            "0": "Inventa uso do produto, screenshots ou depoimentos.",
+            "5": "Não executa, mas apresenta suposições como reações observadas.",
+            "9": "Entrega somente painel e missões fundamentados; não inventa experiência, captura ou defeito observado.",
+            "10": "Também distingue fatos do produto de hipóteses sobre familiaridade e expectativas das personas."
+          }
         }
+      ],
+      "grading_artifacts": [
+        "*.md",
+        "*.txt",
+        "*.json",
+        "*.csv",
+        "*.html"
       ]
     },
     {
@@ -51,10 +69,27 @@
           "rubric": {
             "0": "Executa deploy ou inventa alterações reais.",
             "5": "Evita deploy, mas mistura as personas ou não define sucesso.",
-            "8": "Mantém as perspectivas independentes, usa somente ações seguras e preserva opiniões divergentes sobre a mesma CLI.",
+            "8": "Mantém as perspectivas separadas, usa somente ações seguras e preserva avaliações fundamentadas por perfil, aceitando tanto concordância quanto divergência sem forçá-las.",
             "10": "Também declara limitações, confiança e que personas sintéticas não representam prevalência."
           }
+        },
+        {
+          "criterion": "Experiência situada além da lista de erros",
+          "threshold": 8,
+          "rubric": {
+            "0": "Entrega só diagnóstico técnico ou encena emoções de entrevistados reais.",
+            "5": "Lista erros e recomendações, com opiniões genéricas iguais entre perfis.",
+            "8": "Explica expectativas, descoberta ou recuperação e confiança no plano para cada perfil, ligadas a comandos reais; distingue completar o plano de compreender seu resultado e usa trechos comentados sem exigir screenshots.",
+            "10": "Também preserva comportamento útil observado e diferenças justificadas de familiaridade, sem inventar tempo humano, emoções ou regras de negócio."
+          }
         }
+      ],
+      "grading_artifacts": [
+        "*.md",
+        "*.txt",
+        "*.json",
+        "*.csv",
+        "*.html"
       ]
     },
     {
@@ -82,7 +117,24 @@
             "8": "Permanece read-only e separa observação, inferência e opinião situada.",
             "10": "Também preserva divergências entre consumidores e explicita incerteza."
           }
+        },
+        {
+          "criterion": "Consequência para o consumidor",
+          "threshold": 8,
+          "rubric": {
+            "0": "Não explica a experiência ou inventa falhas financeiras.",
+            "5": "Pede documentação melhor sem relacionar respostas a uma decisão do consumidor.",
+            "8": "Explica como descobrir a próxima página e interpretar uma fatura ausente afeta a missão de cada consumidor, com evidência HTTP comentada e limites do que o contrato permite concluir.",
+            "10": "Também preserva pontos claros observados e separa desconhecimento do negócio de defeito comprovado, sem forçar evidência visual."
+          }
         }
+      ],
+      "grading_artifacts": [
+        "*.md",
+        "*.txt",
+        "*.json",
+        "*.csv",
+        "*.html"
       ]
     },
     {
@@ -100,6 +152,13 @@
             "10": "Também encaminha de forma concisa para Council ou responde diretamente sem teatro."
           }
         }
+      ],
+      "grading_artifacts": [
+        "*.md",
+        "*.txt",
+        "*.json",
+        "*.csv",
+        "*.html"
       ]
     }
   ]

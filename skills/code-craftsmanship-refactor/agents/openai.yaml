@@ -1,0 +1,4 @@
+interface:
+  display_name: "Code Craftsmanship Refactor"
+  short_description: "Polish working code without changing behavior"
+  default_prompt: "Use $code-craftsmanship-refactor to polish the current diff while preserving behavior."

@@ -6,8 +6,9 @@ import { chmod, mkdtemp, mkdir, readFile, readdir, writeFile } from "node:fs/pro
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { spawn } from "node:child_process";
+import { fileURLToPath } from "node:url";
 
-const ROOT = new URL("..", import.meta.url).pathname;
+const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const { codexPersistedSessions, collaborationFromJsonl, collaborationRequirementGrade, runtimeConcurrency, scoreSarifSemanticMatches, semanticRetryContext } = await import(new URL("../scripts/evaluate-skills.ts", import.meta.url));
 assert.equal(runtimeConcurrency({ runtime: "kiro", concurrency: 3 }), 1);
 assert.equal(runtimeConcurrency({ runtime: "codex", concurrency: 3 }), 3);
@@ -160,7 +161,8 @@ assert.equal(duplicateSemanticPair.passed, false);
 
 function run(command, args, cwd = ROOT) {
   return new Promise((resolve) => {
-    const child = spawn(command, args, { cwd, stdio: ["ignore", "pipe", "pipe"] });
+    const executable = command === "node" ? process.execPath : command;
+    const child = spawn(executable, args, { cwd, stdio: ["ignore", "pipe", "pipe"] });
     let stdout = "";
     let stderr = "";
     child.stdout.on("data", (chunk) => { stdout += chunk; });
@@ -187,10 +189,10 @@ assert.deepEqual(await codexPersistedSessions(sessionHome), [{
 const skill = join(temp, "sample-skill");
 const previous = join(temp, "sample-skill-previous");
 const conversationSkill = join(temp, "conversation-skill");
-const fakeCodex = join(temp, "fake-codex.sh");
-const fakeKiro = join(temp, "fake-kiro.sh");
-const fakeCodebaseMemoryCli = join(temp, "fake-codebase-memory-mcp");
-const fakeAstGrepCli = join(temp, "fake-ast-grep");
+const fakeCodex = join(temp, "fake-codex.mjs");
+const fakeKiro = join(temp, "fake-kiro.mjs");
+const fakeCodebaseMemoryCli = join(temp, "fake-codebase-memory-mcp.mjs");
+const fakeAstGrepCli = join(temp, "fake-ast-grep.mjs");
 const kiroLog = join(temp, "fake-kiro.log");
 const codexLog = join(temp, "fake-codex.log");
 const workspace = join(temp, "workspace");
@@ -217,105 +219,125 @@ await writeFile(join(skill, "evals", "evals.json"), JSON.stringify({
     }]
   }]
 }, null, 2));
-await writeFile(fakeCodex, `#!/bin/sh
-output=""
-schema=""
-skill_dir=""
-all_args="$*"
-printf 'argv=%s AI_OUTPUT_DIR=%s OPENCODE_CONFIG_DIR=%s\n' "$all_args" "\${AI_OUTPUT_DIR:-}" "\${OPENCODE_CONFIG_DIR:-}" >> "$FAKE_CODEX_LOG"
-case "$all_args" in
-  *"mcp_servers.codebase_memory.command"*"mcp list --json"*)
-    printf '[{"name":"codebase_memory","enabled":true,"transport":{"type":"stdio","command":"%s","args":[]}}]' "$FAKE_MCP_BIN"
-    exit 0 ;;
-esac
-if [ "$1" = "mcp" ] && [ "$2" = "list" ]; then
-  printf 'HOME=%s CODEX_HOME=%s mcp_preflight\n' "\${HOME:-}" "\${CODEX_HOME:-}" >> "$FAKE_CODEX_LOG"
-  printf '%s' '[{"name":"configured_but_disabled","enabled":false}]'
-  exit 0
-fi
-while [ "$#" -gt 0 ]; do
-  case "$1" in
-    --output-last-message) output="$2"; shift 2 ;;
-    --output-schema) schema="$2"; shift 2 ;;
-    --add-dir) skill_dir="$2"; shift 2 ;;
-    *) shift ;;
-  esac
-done
-mkdir -p "$(dirname "$output")"
-if [ -n "$schema" ] && grep -q '"action"' "$schema"; then
-  case "$all_args" in
-    *"Final turn: true"*) printf '%s' '{"action":"final","content":"A grounded final brainstorm."}' > "$output" ;;
-    *) printf '%s' '{"action":"question","content":"What constraint matters most?"}' > "$output" ;;
-  esac
-  printf '%s\\n' 'status text' '{"type":"turn.completed","usage":{"input_tokens":100,"cached_input_tokens":40,"cache_write_input_tokens":3,"output_tokens":15,"reasoning_output_tokens":7}}'
-elif [ -n "$schema" ] && grep -q '"reply"' "$schema"; then
-  printf '%s' '{"reply":"The migration must finish in three weeks.","revealed_fact_ids":["migration-window"]}' > "$output"
-  printf '%s\\n' 'status text' '{"type":"turn.completed","usage":{"input_tokens":100,"cached_input_tokens":40,"cache_write_input_tokens":3,"output_tokens":15,"reasoning_output_tokens":7}}'
-elif [ -n "$schema" ] && grep -q '"sarif_matches"' "$schema"; then
-  printf '%s' '{"results":[],"sarif_matches":[{"expected_id":"expected-1","actual_index":0,"evidence":"same fixture defect and consequence"}]}' > "$output"
-  printf '%s\\n' 'status text' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input_tokens":4,"cache_write_input_tokens":1,"output_tokens":5,"reasoning_output_tokens":2}}'
-elif [ -n "$schema" ]; then
-  case "$all_args" in
-    *old-result*) printf '%s' '{"results":[{"criterion":"The result is present.","score":4,"evidence":"old result"}]}' > "$output" ;;
-    *) printf '%s' '{"results":[{"criterion":"The result is present.","score":9,"evidence":"result"}]}' > "$output" ;;
-  esac
-  printf '%s\\n' 'status text' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input_tokens":4,"cache_write_input_tokens":1,"output_tokens":5,"reasoning_output_tokens":2}}'
-else
-  if [ -n "\${OPENCODE_CONFIG_DIR:-}" ] && [ -f "$OPENCODE_CONFIG_DIR/scripts/collect-pr-context.sh" ]; then
-    sh "$OPENCODE_CONFIG_DIR/scripts/collect-pr-context.sh"
-    printf '%s' 'result' > "$output"
-  elif [ -f marker.txt ] && [ "$(cat marker.txt)" = "workspace fixture" ]; then
-    printf '%s' 'workspace-result' > "$output"
-    cat > "$(dirname "$output")/review.sarif" <<'JSON'
-{"version":"2.1.0","runs":[{"results":[{"ruleId":"TEST-WORKSPACE","level":"error","message":{"text":"fixture"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"src/example.js"},"region":{"startLine":7}}}]}]}]}
-JSON
-  elif grep -q 'Previous fixture' "$skill_dir/SKILL.md"; then printf '%s' 'old-result' > "$output"; else printf '%s' 'result' > "$output"; fi
-  case "$all_args" in
-    *"--enable multi_agent"*) printf '%s\n' \
-      '{"type":"item.completed","item":{"id":"spawn-1","type":"collab_tool_call","tool":"spawn_agent","status":"completed","receiver_thread_ids":["scout-1"],"prompt":"Role: change_mapper, read-only change mapper","agents_states":{"scout-1":{"status":"pending"}}}}' \
-      '{"type":"item.completed","item":{"id":"spawn-2","type":"collab_tool_call","tool":"spawn_agent","status":"completed","receiver_thread_ids":["explorer-1"],"prompt":"Role: risk_verifier, read-only risk verifier","agents_states":{"explorer-1":{"status":"pending"}}}}' \
-      '{"type":"item.completed","item":{"id":"wait-1","type":"collab_tool_call","tool":"wait","status":"completed","receiver_thread_ids":["scout-1","explorer-1"],"agents_states":{"scout-1":{"status":"completed"},"explorer-1":{"status":"completed"}}}}' ;;
-  esac
-  printf '%s\n' 'status text' \
-    '{"type":"turn.completed","id":"task-one","usage":{"input_tokens":100,"cached_input_tokens":40,"cache_write_input_tokens":3,"output_tokens":15,"reasoning_output_tokens":7}}' \
-    '{"type":"turn.completed","id":"task-two","usage":{"input_tokens":10,"cached_input_tokens":4,"cache_write_input_tokens":1,"output_tokens":1,"reasoning_output_tokens":0}}'
-fi
+await writeFile(fakeCodex, `#!/usr/bin/env node
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+
+const args = process.argv.slice(2);
+const stdin = args.at(-1) === "-" ? readFileSync(0, "utf8") : "";
+const allArgs = args.join(" ") + stdin;
+appendFileSync(process.env.FAKE_CODEX_LOG, "argv=" + allArgs + " AI_OUTPUT_DIR=" + (process.env.AI_OUTPUT_DIR ?? "") + " OPENCODE_CONFIG_DIR=" + (process.env.OPENCODE_CONFIG_DIR ?? "") + "\\n");
+if (allArgs.includes("mcp list --json")) {
+  appendFileSync(process.env.FAKE_CODEX_LOG, "HOME=" + (process.env.HOME ?? "") + " CODEX_HOME=" + (process.env.CODEX_HOME ?? "") + " mcp_preflight\\n");
+  const enabled = allArgs.includes("mcp_servers.codebase_memory.command");
+  process.stdout.write(JSON.stringify(enabled
+    ? [{ name: "codebase_memory", enabled: true, transport: { type: "stdio", command: process.env.FAKE_MCP_BIN, args: [] } }]
+    : [{ name: "configured_but_disabled", enabled: false }]));
+  process.exit(0);
+}
+let output = "";
+let schema = "";
+let skillDir = "";
+for (let index = 0; index < args.length; index += 1) {
+  if (args[index] === "--output-last-message") output = args[++index];
+  else if (args[index] === "--output-schema") schema = args[++index];
+  else if (args[index] === "--add-dir") skillDir = args[++index];
+}
+mkdirSync(dirname(output), { recursive: true });
+const schemaText = schema && existsSync(schema) ? readFileSync(schema, "utf8") : "";
+if (schemaText.includes('"action"')) {
+  const value = allArgs.includes("Final turn: true")
+    ? { action: "final", content: "A grounded final brainstorm." }
+    : { action: "question", content: "What constraint matters most?" };
+  writeFileSync(output, JSON.stringify(value));
+  console.log("status text");
+  console.log('{"type":"turn.completed","usage":{"input_tokens":100,"cached_input_tokens":40,"cache_write_input_tokens":3,"output_tokens":15,"reasoning_output_tokens":7}}');
+} else if (schemaText.includes('"reply"')) {
+  writeFileSync(output, '{"reply":"The migration must finish in three weeks.","revealed_fact_ids":["migration-window"]}');
+  console.log("status text");
+  console.log('{"type":"turn.completed","usage":{"input_tokens":100,"cached_input_tokens":40,"cache_write_input_tokens":3,"output_tokens":15,"reasoning_output_tokens":7}}');
+} else if (schemaText.includes('"sarif_matches"')) {
+  let matches;
+  if (allArgs.includes("wrong root cause")) matches = [];
+  else if (allArgs.includes("Expected root causes:") && allArgs.includes("expected-3")) matches = [
+    { expected_id: "expected-1", actual_index: 0, evidence: "same first mechanism" },
+    { expected_id: "expected-2", actual_index: 1, evidence: "same second mechanism" }
+  ];
+  else matches = [{ expected_id: "expected-1", actual_index: 0, evidence: "same fixture defect and consequence" }];
+  writeFileSync(output, JSON.stringify({ results: [], sarif_matches: matches }));
+  console.log('{"type":"turn.completed","usage":{"input_tokens":20,"cached_input_tokens":4,"cache_write_input_tokens":1,"output_tokens":5,"reasoning_output_tokens":2}}');
+} else if (schema) {
+  const value = allArgs.includes("old-result")
+    ? { results: [{ criterion: "The result is present.", score: 4, evidence: "old result" }] }
+    : { results: [{ criterion: "The result is present.", score: 9, evidence: "result" }] };
+  writeFileSync(output, JSON.stringify(value));
+  console.log("status text");
+  console.log('{"type":"turn.completed","usage":{"input_tokens":20,"cached_input_tokens":4,"cache_write_input_tokens":1,"output_tokens":5,"reasoning_output_tokens":2}}');
+} else {
+  const contextScript = process.env.OPENCODE_CONFIG_DIR ? join(process.env.OPENCODE_CONFIG_DIR, "scripts", "collect-pr-context.sh") : "";
+  if (contextScript && existsSync(contextScript)) {
+    const contextOutput = join(process.env.AI_OUTPUT_DIR, "pr-context", "context.txt");
+    mkdirSync(dirname(contextOutput), { recursive: true });
+    writeFileSync(contextOutput, process.env.OPENCODE_CONFIG_DIR);
+    writeFileSync(output, "result");
+  } else if (existsSync("marker.txt") && readFileSync("marker.txt", "utf8") === "workspace fixture") {
+    writeFileSync(output, "workspace-result");
+    writeFileSync(join(dirname(output), "review.sarif"), '{"version":"2.1.0","runs":[{"results":[{"ruleId":"TEST-WORKSPACE","level":"error","message":{"text":"fixture"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"src/example.js"},"region":{"startLine":7}}}]}]}]}');
+  } else if (skillDir && existsSync(join(skillDir, "SKILL.md")) && readFileSync(join(skillDir, "SKILL.md"), "utf8").includes("Previous fixture")) {
+    writeFileSync(output, "old-result");
+  } else {
+    writeFileSync(output, "result");
+  }
+  if (allArgs.includes("--enable multi_agent")) {
+    console.log('{"type":"item.completed","item":{"id":"spawn-1","type":"collab_tool_call","tool":"spawn_agent","status":"completed","receiver_thread_ids":["scout-1"],"prompt":"Role: change_mapper, read-only change mapper","agents_states":{"scout-1":{"status":"pending"}}}}');
+    console.log('{"type":"item.completed","item":{"id":"spawn-2","type":"collab_tool_call","tool":"spawn_agent","status":"completed","receiver_thread_ids":["explorer-1"],"prompt":"Role: risk_verifier, read-only risk verifier","agents_states":{"explorer-1":{"status":"pending"}}}}');
+    console.log('{"type":"item.completed","item":{"id":"wait-1","type":"collab_tool_call","tool":"wait","status":"completed","receiver_thread_ids":["scout-1","explorer-1"],"agents_states":{"scout-1":{"status":"completed"},"explorer-1":{"status":"completed"}}}}');
+  }
+  console.log("status text");
+  console.log('{"type":"turn.completed","id":"task-one","usage":{"input_tokens":100,"cached_input_tokens":40,"cache_write_input_tokens":3,"output_tokens":15,"reasoning_output_tokens":7}}');
+  console.log('{"type":"turn.completed","id":"task-two","usage":{"input_tokens":10,"cached_input_tokens":4,"cache_write_input_tokens":1,"output_tokens":1,"reasoning_output_tokens":0}}');
+}
 `);
 await chmod(fakeCodex, 0o755);
-await writeFile(fakeCodebaseMemoryCli, `#!/bin/sh
-if [ "$1" = "--version" ]; then printf '%s\\n' 'codebase-memory-mcp 0.9.0'; exit 0; fi
-exit 2
+await writeFile(fakeCodebaseMemoryCli, `#!/usr/bin/env node
+if (process.argv[2] === "--version") console.log("codebase-memory-mcp 0.9.0");
+else process.exitCode = 2;
 `);
 await chmod(fakeCodebaseMemoryCli, 0o755);
-await writeFile(fakeAstGrepCli, `#!/bin/sh
-if [ "$1" = "--version" ]; then printf '%s\\n' 'ast-grep 0.45.1'; exit 0; fi
-exit 2
+await writeFile(fakeAstGrepCli, `#!/usr/bin/env node
+if (process.argv[2] === "--version") console.log("ast-grep 0.45.1");
+else process.exitCode = 2;
 `);
 await chmod(fakeAstGrepCli, 0o755);
-await writeFile(fakeKiro, `#!/bin/sh
-argv_bytes=0
-prompt=""
-for arg in "$@"; do
-  argv_bytes=$((argv_bytes + \${#arg}))
-  prompt="$arg"
-done
-printf 'argv_bytes=%s HOME=%s %s\\n' "$argv_bytes" "$HOME" "$*" >> "$FAKE_KIRO_LOG"
-case "$prompt" in
-  *"Read the complete grading context from the absolute file path below."*)
-    context=$(printf '%s\\n' "$prompt" | sed -n 's/^Grading context: //p')
-    response=$(printf '%s\\n' "$prompt" | sed -n 's/^Response path: //p')
-    [ -f "$context" ] && [ -n "$response" ] || exit 3
-    printf 'grader_context=%s argv_bytes=%s\\n' "$context" "$argv_bytes" >> "$FAKE_KIRO_LOG"
-    printf '%s\\n' 'Reading file...' 'Writing grader response...'
-    mkdir -p "$(dirname "$response")"
-    if [ "$FAKE_KIRO_MISSING_GRADE" = "1" ]; then :
-    elif [ "$FAKE_KIRO_INVALID_GRADE" = "1" ]; then printf '%s' 'not-json' > "$response"
-    else printf '%s' '{"results":[{"criterion":"The result is present.","score":9,"evidence":"kiro result"}]}' > "$response"
-    fi
-    if [ "$FAKE_KIRO_EXIT_1" = "1" ]; then printf '%s\\n' 'grader exited after writing response' >&2; exit 1; fi ;;
-  *"Produce a large result."*) head -c 327680 /dev/zero | tr '\\000' x ;;
-  *) printf '%s' 'kiro-result' ;;
-esac
+await writeFile(fakeKiro, `#!/usr/bin/env node
+import { appendFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { dirname } from "node:path";
+
+const args = process.argv.slice(2);
+const argvBytes = args.reduce((sum, value) => sum + value.length, 0);
+const prompt = args.at(-1) ?? "";
+appendFileSync(process.env.FAKE_KIRO_LOG, "argv_bytes=" + argvBytes + " HOME=" + (process.env.HOME ?? "") + " " + args.join(" ") + "\\n");
+if (prompt.includes("Read the complete grading context from the absolute file path below.")) {
+  const lines = prompt.split(/\\r?\\n/);
+  const context = lines.find((line) => line.startsWith("Grading context: "))?.slice("Grading context: ".length) ?? "";
+  const response = lines.find((line) => line.startsWith("Response path: "))?.slice("Response path: ".length) ?? "";
+  if (!existsSync(context) || !response) process.exit(3);
+  appendFileSync(process.env.FAKE_KIRO_LOG, "grader_context=" + context + " argv_bytes=" + argvBytes + "\\n");
+  console.log("Reading file...");
+  console.log("Writing grader response...");
+  mkdirSync(dirname(response), { recursive: true });
+  if (process.env.FAKE_KIRO_MISSING_GRADE !== "1") {
+    writeFileSync(response, process.env.FAKE_KIRO_INVALID_GRADE === "1" ? "not-json" : '{"results":[{"criterion":"The result is present.","score":9,"evidence":"kiro result"}]}');
+  }
+  if (process.env.FAKE_KIRO_EXIT_1 === "1") {
+    console.error("grader exited after writing response");
+    process.exitCode = 1;
+  }
+} else if (prompt.includes("Produce a large result.")) {
+  process.stdout.write("x".repeat(327680));
+} else {
+  process.stdout.write("kiro-result");
+}
 `);
 await chmod(fakeKiro, 0o755);
 process.env.FAKE_KIRO_LOG = kiroLog;
@@ -325,10 +347,20 @@ process.env.FAKE_MCP_BIN = join(temp, "fake-codebase-memory-mcp");
 const first = await run("node", [
   "scripts/evaluate-skills.ts", "--skill", skill, "--workspace", workspace,
   "--codex-bin", fakeCodex, "--codex-config", "features.example=true",
-  "--codex-config", "candidate.label=fixture", "--iteration", "1"
+  "--codex-config", "candidate.label=fixture",
+  "--codex-config", 'mcp_servers.chrome-devtools.env.TEMP="${output_dir}"',
+  "--approve-for-me", "--iteration", "1"
 ]);
 assert.equal(first.code, 0, first.stderr);
-assert.match(await readFile(codexLog, "utf8"), /--config features\.example=true --config candidate\.label=fixture/);
+const firstCodexLog = await readFile(codexLog, "utf8");
+assert.match(firstCodexLog, /--approve-for-me/);
+assert.doesNotMatch(firstCodexLog, /--sandbox workspace-write/);
+assert.match(firstCodexLog, /--config features\.example=true --config candidate\.label=fixture/);
+for (const variant of ["without_skill", "with_skill"]) {
+  const evidenceDir = join(workspace, "iteration-1", "eval-one", variant, "outputs");
+  assert.ok(firstCodexLog.includes(`--config mcp_servers.chrome-devtools.env.TEMP=${JSON.stringify(evidenceDir)}`));
+}
+assert.ok(!firstCodexLog.includes('${output_dir}'));
 const benchmark = JSON.parse(await readFile(join(workspace, "iteration-1", "evaluation.json"), "utf8"));
 assert.equal(benchmark.summary.with_skill.passed, 1);
 assert.equal(benchmark.runtime_profile.name, "test-local-v1");
@@ -489,8 +521,8 @@ assert.equal(conversationResult.timing.total_tokens, 345);
 assert.equal(conversationResult.conversation.candidate_turns, 2);
 assert.deepEqual(conversationResult.conversation.discovery.revealed_fact_ids, ["migration-window"]);
 assert.equal(conversationResult.conversation.transcript.at(-1).content, "A grounded final brainstorm.");
-assert.equal(conversationBenchmark.transcript_bundle, "transcripts/index.md");
-assert.equal(conversationResult.transcript_bundle_path, "transcripts/discovery/repetition-1/participant-conversation-skill-1.json");
+assert.equal(conversationBenchmark.transcript_bundle.replaceAll("\\", "/"), "transcripts/index.md");
+assert.equal(conversationResult.transcript_bundle_path.replaceAll("\\", "/"), "transcripts/discovery/repetition-1/participant-conversation-skill-1.json");
 assert.equal(await readFile(join(conversationWorkspace, "iteration-1", conversationResult.transcript_bundle_path), "utf8"), await readFile(join(conversationWorkspace, "iteration-1", conversationResult.transcript_path), "utf8"));
 assert.match(await readFile(join(conversationWorkspace, "iteration-1", "transcripts", "index.md"), "utf8"), /participant-sample-skill-2/);
 await assert.rejects(readFile(join(conversationWorkspace, "iteration-1", "eval-discovery", "repetition-1", "participant-conversation-skill-1", "runtime-skill", "evals", "evals.json")));
@@ -540,7 +572,9 @@ await writeFile(join(workspaceSkill, "SKILL.md"), "---\nname: workspace-skill\nd
 await writeFile(join(workspaceFixture, "marker.txt"), "workspace fixture");
 await writeFile(join(workspaceFixture, "src", "example.js"), "export const example = true;\n");
 const workspaceZip = join(workspaceSuite, "fixtures", "workspace.zip");
-const zipRun = await run("zip", ["-q", "-r", workspaceZip, "."], workspaceFixture);
+const zipRun = process.platform === "win32"
+  ? await run("tar", ["-a", "-c", "-f", workspaceZip, "."], workspaceFixture)
+  : await run("zip", ["-q", "-r", workspaceZip, "."], workspaceFixture);
 assert.equal(zipRun.code, 0, zipRun.stderr);
 await writeFile(join(workspaceSuite, "ground-truth.json"), JSON.stringify({ findings: [{ path: "src/example.js", line: 7, rule_id: "TEST-WORKSPACE", level: "error", title: "Workspace fixture defect", impact: "The fixture behavior is incorrect." }] }));
 await writeFile(join(workspaceSuite, "evals.json"), JSON.stringify({
@@ -615,11 +649,11 @@ await assert.rejects(readFile(join(isolatedHome, ".kiro", "settings", "mcp.json"
 const cleanHomeLog = (await readFile(kiroLog, "utf8")).split("\n").filter((line) => line.includes("--agent bench-agent"));
 assert.equal(cleanHomeLog.length, 2, cleanHomeLog.join("\n"));
 assert.ok(cleanHomeLog.some((line) => line.includes(`HOME=${isolatedHome}`)), cleanHomeLog.join("\n"));
-assert.ok(cleanHomeLog.every((line) => /HOME=\S+\/kiro-home /.test(line)), cleanHomeLog.join("\n"));
+assert.ok(cleanHomeLog.every((line) => /HOME=\S+[\\/]kiro-home /.test(line)), cleanHomeLog.join("\n"));
 assert.equal(new Set(cleanHomeLog.map((line) => /HOME=(\S+)/.exec(line)[1])).size, 2, "each variant needs its own isolated HOME");
 
 
-assert.match(await readFile(kiroLog, "utf8"), /runtime-skill\/SKILL\.md/);
+assert.match(await readFile(kiroLog, "utf8"), /runtime-skill[\\/]SKILL\.md/);
 
 process.env.FAKE_KIRO_EXIT_1 = "1";
 const exitOneKiroWorkspace = join(temp, "exit-one-kiro-workspace");
@@ -694,6 +728,10 @@ assert.match(await readFile(kiroLog, "utf8"), /chat --no-interactive --wrap neve
 
 const missingKiroTrust = await run("node", ["scripts/evaluate-skills.ts", "--skill", skill, "--runtime", "kiro", "--kiro-bin", fakeKiro]);
 assert.equal(missingKiroTrust.code, 2);
+assert.match(missingKiroTrust.stderr, /requires --kiro-trust-tools or --kiro-trust-all-tools/);
+const kiroApproveForMe = await run("node", ["scripts/evaluate-skills.ts", "--skill", skill, "--runtime", "kiro", "--kiro-bin", fakeKiro, "--kiro-trust-tools", "fs_read", "--approve-for-me"]);
+assert.equal(kiroApproveForMe.code, 2);
+assert.match(kiroApproveForMe.stderr, /--approve-for-me requires --runtime codex/);
 const conflictingKiroTrust = await run("node", ["scripts/evaluate-skills.ts", "--skill", skill, "--runtime", "kiro", "--kiro-bin", fakeKiro, "--kiro-trust-tools", "fs_read", "--kiro-trust-all-tools"]);
 assert.equal(conflictingKiroTrust.code, 2);
 
@@ -709,45 +747,50 @@ const totvsOutputs = join(totvsEnvWorkspace, "iteration-1", "eval-external", "wi
 const totvsCandidateOutput = join(totvsEnvWorkspace, "iteration-1", "eval-external", "with_skill", ".agent-eval-output");
 const contextScript = join(totvsEnvWorkspace, "iteration-1", "eval-external", "with_skill", "runtime-skill", "scripts", "collect-pr-context.sh");
 assert.equal((await readFile(join(totvsOutputs, "pr-context", "context.txt"), "utf8")), join(totvsEnvWorkspace, "iteration-1", "eval-external", "with_skill", "runtime-skill"));
-assert.match(await readFile(codexLog, "utf8"), new RegExp(`AI_OUTPUT_DIR=${totvsCandidateOutput} OPENCODE_CONFIG_DIR=${contextScript.replace(/\/scripts\/collect-pr-context\.sh$/, "")}`));
+const expectedTotvsEnvironment = `AI_OUTPUT_DIR=${totvsCandidateOutput} OPENCODE_CONFIG_DIR=${dirname(dirname(contextScript))}`;
+assert.ok((await readFile(codexLog, "utf8")).includes(expectedTotvsEnvironment));
 
-const fakeSarifCodex = join(temp, "fake-sarif-codex.sh");
-await writeFile(fakeSarifCodex, `#!/bin/sh
-output=""
-schema=""
-all_args="$*"
-if [ "$1" = "mcp" ] && [ "$2" = "list" ]; then exit 0; fi
-while [ "$#" -gt 0 ]; do
-  case "$1" in
-    --output-last-message) output="$2"; shift 2 ;;
-    --output-schema) schema="$2"; shift 2 ;;
-    *) shift ;;
-  esac
-done
-mkdir -p "$(dirname "$output")"
-if [ -n "$schema" ]; then
-  case "$all_args" in
-    *"wrong root cause"*) matches='[]' ;;
-    *"equivalent finding"*"extra finding"*) matches='[{"expected_id":"expected-1","actual_index":0,"evidence":"same mechanism and consequence"}]' ;;
-    *"Expected root causes:"*"expected-3"*) matches='[{"expected_id":"expected-1","actual_index":0,"evidence":"same first mechanism"},{"expected_id":"expected-2","actual_index":1,"evidence":"same second mechanism"}]' ;;
-    *"Expected root causes:"*) matches='[{"expected_id":"expected-1","actual_index":0,"evidence":"same mechanism and consequence"}]' ;;
-  esac
-  printf '{"results":[],"sarif_matches":%s}' "$matches" > "$output"
-  printf '%s\\n' '{"type":"turn.completed","usage":{"input_tokens":20,"output_tokens":5}}'
-  exit 0
-fi
-printf '%s' 'sarif-result' > "$output"
-case "$(cat marker.txt)" in
-  tolerant) results='[{"ruleId":"CUSTOM-RULE","level":"error","message":{"text":"equivalent finding"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"src/example.js"},"region":{"startLine":8}}}]}]' ;;
-  wrong-level) results='[{"ruleId":"CUSTOM-RULE","level":"warning","message":{"text":"wrong level"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"src/example.js"},"region":{"startLine":8}}}]}]' ;;
-  wrong-path) results='[{"ruleId":"CUSTOM-RULE","level":"error","message":{"text":"wrong path"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"src/other.js"},"region":{"startLine":8}}}]}]' ;;
-  wrong-root) results='[{"ruleId":"CUSTOM-RULE","level":"error","message":{"text":"wrong root cause"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"src/example.js"},"region":{"startLine":7}}}]}]' ;;
-  extra) results='[{"ruleId":"CUSTOM-RULE","level":"error","message":{"text":"equivalent finding"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"src/example.js"},"region":{"startLine":8}}}]},{"ruleId":"EXTRA-RULE","level":"error","message":{"text":"extra finding"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"src/example.js"},"region":{"startLine":20}}}]}]' ;;
-  gated-pass|gated-recall) results='[{"ruleId":"CUSTOM-RULE","level":"error","message":{"text":"equivalent finding"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"src/example.js"},"region":{"startLine":7}}}]}]' ;;
-  gated-level) results='[{"ruleId":"CUSTOM-RULE","level":"error","message":{"text":"equivalent finding"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"src/example.js"},"region":{"startLine":7}}}]},{"ruleId":"CUSTOM-RULE","level":"warning","message":{"text":"equivalent finding"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"src/example.js"},"region":{"startLine":9}}}]}]' ;;
-  gated-fp) results='[{"ruleId":"CUSTOM-RULE","level":"error","message":{"text":"equivalent finding"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"src/example.js"},"region":{"startLine":7}}}]},{"ruleId":"EXTRA-RULE","level":"error","message":{"text":"extra finding"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"src/example.js"},"region":{"startLine":20}}}]}]' ;;
-esac
-printf '{"version":"2.1.0","runs":[{"results":%s}]}' "$results" > "$(dirname "$output")/review.sarif"
+const fakeSarifCodex = join(temp, "fake-sarif-codex.mjs");
+await writeFile(fakeSarifCodex, `#!/usr/bin/env node
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+
+const args = process.argv.slice(2);
+const stdin = args.at(-1) === "-" ? readFileSync(0, "utf8") : "";
+const allArgs = args.join(" ") + stdin;
+if (allArgs.includes("mcp list --json")) process.exit(0);
+const outputIndex = args.indexOf("--output-last-message");
+const output = args[outputIndex + 1];
+const schemaIndex = args.indexOf("--output-schema");
+const schema = schemaIndex >= 0 ? args[schemaIndex + 1] : "";
+mkdirSync(dirname(output), { recursive: true });
+if (schema && existsSync(schema)) {
+  let matches;
+  if (allArgs.includes("wrong root cause")) matches = [];
+  else if (allArgs.includes("Expected root causes:") && allArgs.includes("expected-3")) matches = [
+    { expected_id: "expected-1", actual_index: 0, evidence: "same first mechanism" },
+    { expected_id: "expected-2", actual_index: 1, evidence: "same second mechanism" }
+  ];
+  else matches = [{ expected_id: "expected-1", actual_index: 0, evidence: "same mechanism and consequence" }];
+  writeFileSync(output, JSON.stringify({ results: [], sarif_matches: matches }));
+  console.log('{"type":"turn.completed","usage":{"input_tokens":20,"output_tokens":5}}');
+  process.exit(0);
+}
+writeFileSync(output, "sarif-result");
+const marker = readFileSync("marker.txt", "utf8");
+const finding = (ruleId, level, text, uri, line) => ({ ruleId, level, message: { text }, locations: [{ physicalLocation: { artifactLocation: { uri }, region: { startLine: line } } }] });
+const resultsByMarker = {
+  tolerant: [finding("CUSTOM-RULE", "error", "equivalent finding", "src/example.js", 8)],
+  "wrong-level": [finding("CUSTOM-RULE", "warning", "wrong level", "src/example.js", 8)],
+  "wrong-path": [finding("CUSTOM-RULE", "error", "wrong path", "src/other.js", 8)],
+  "wrong-root": [finding("CUSTOM-RULE", "error", "wrong root cause", "src/example.js", 7)],
+  extra: [finding("CUSTOM-RULE", "error", "equivalent finding", "src/example.js", 8), finding("EXTRA-RULE", "error", "extra finding", "src/example.js", 20)],
+  "gated-pass": [finding("CUSTOM-RULE", "error", "equivalent finding", "src/example.js", 7)],
+  "gated-recall": [finding("CUSTOM-RULE", "error", "equivalent finding", "src/example.js", 7)],
+  "gated-level": [finding("CUSTOM-RULE", "error", "equivalent finding", "src/example.js", 7), finding("CUSTOM-RULE", "warning", "equivalent finding", "src/example.js", 9)],
+  "gated-fp": [finding("CUSTOM-RULE", "error", "equivalent finding", "src/example.js", 7), finding("EXTRA-RULE", "error", "extra finding", "src/example.js", 20)]
+};
+writeFileSync(join(dirname(output), "review.sarif"), JSON.stringify({ version: "2.1.0", runs: [{ results: resultsByMarker[marker] }] }));
 `);
 await chmod(fakeSarifCodex, 0o755);
 
@@ -759,7 +802,9 @@ async function runSarifCase(id, marker, { findings = [{ path: "src/example.js", 
   await writeFile(join(fixture, "src", "example.js"), "export const example = true;\n");
   const archive = join(suite, "fixture.zip");
   await mkdir(suite, { recursive: true });
-  const zipped = await run("zip", ["-q", "-r", archive, "."], fixture);
+  const zipped = process.platform === "win32"
+    ? await run("tar", ["-a", "-c", "-f", archive, "."], fixture)
+    : await run("zip", ["-q", "-r", archive, "."], fixture);
   assert.equal(zipped.code, 0, zipped.stderr);
   const semanticFindings = findings.map((finding, index) => ({ title: `Expected defect ${index + 1}`, impact: `Expected consequence ${index + 1}`, ...finding }));
   await writeFile(join(suite, "ground-truth.json"), JSON.stringify({ findings: semanticFindings }));

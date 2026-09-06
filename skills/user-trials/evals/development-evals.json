@@ -1,0 +1,150 @@
+{
+  "skill_name": "user-trials",
+  "rubric_revision_note": "Pré-registrado em 2026-09-06, antes de executar candidatos. Gates derivados das consequências dos produtos. Não reduzir thresholds para obter aprovação.",
+  "evals": [
+    {
+      "id": "dispatch-partial-handoff",
+      "workspace_zip": "fixtures/dispatch-product.zip",
+      "prompt": "Faça um user trial do Parcel Desk para preparar a expedição dos pedidos elegíveis, passar pela aprovação do supervisor e informar ao depósito quais volumes a transportadora aceitou. Use o driver HTTP de verdade e o contrato público. Estão autorizadas as mutações isoladas de criar, aprovar e despachar lotes com os papéis documentados. Você não possui um novo endereço para pedidos com endereço ausente: não invente um. Preserve os dados locais para acompanhamento. Entregue um relatório sucinto que permita decidir o que corrigir e aprofundar as evidências.",
+      "expected_output": "Pedidos PK-21 e PK-22 são elegíveis; PK-23 está corretamente retido a pedido do cliente. O lote exige supervisor e continua salvo entre chamadas. O despacho retorna 202 e Dispatch complete, mas o trabalho ainda está em processamento. Depois, PK-21 é aceito e PK-22 rejeitado por endereço ausente. O comprovante anuncia 2 volumes mas lista somente PK-21, podendo levar o depósito a esperar dois volumes aceitos. A aprovação e o bloqueio do pedido retido são escolhas justificadas. Não há endereço novo disponível nem evidência de entrega física. Recomendações devem resolver comunicação de estado e coerência do comprovante, com verificações concretas; nenhuma arquitetura interna pode ser inferida apenas dessas respostas.",
+      "assertions": [
+        {
+          "criterion": "Jornada e resultado",
+          "threshold": 8,
+          "rubric": {
+            "0": "Não opera o driver.",
+            "5": "Para na criação ou aprovação sem verificar aceitação.",
+            "8": "Opera seleção, passagem por supervisor, despacho, resultado por item e comprovante; informa a aceitação parcial e o limite de entrega física.",
+            "10": "Também distingue processamento concluído de todos os itens aceitos e preserva o rascunho para acompanhamento."
+          }
+        },
+        {
+          "criterion": "Precisão e controles corretos",
+          "threshold": 9,
+          "rubric": {
+            "0": "Inventa entrega ou defeitos.",
+            "5": "Trata retenção ou aprovação como bloqueador indevido.",
+            "9": "Não cria falso positivo material; reconhece retenção e aprovação justificadas, identifica o contraste 202/complete e comprovante 2 versus um aceito.",
+            "10": "Também preserva recuperação indicada pelo produto sem inventar endereço ou mutar fora do autorizado."
+          }
+        },
+        {
+          "criterion": "Rastreabilidade",
+          "threshold": 9,
+          "rubric": {
+            "0": "Evidências inventadas.",
+            "5": "Afirma efeitos sem método/rota/resposta localizáveis.",
+            "9": "Cada achado material conecta missão, expectativa, ação e trechos reais de método, rota, status e resposta a uma consequência; evidências citadas existem.",
+            "10": "Também explicita quais conclusões são inferências e quais resultados não foram verificados."
+          }
+        },
+        {
+          "criterion": "Sugestões verificáveis",
+          "threshold": 8,
+          "rubric": {
+            "0": "Sem vínculo com problema.",
+            "5": "Conselhos como melhorar UX/documentação.",
+            "8": "Cada sugestão material liga problema a mudança concreta, benefício esperado e teste que verifica se ajudou.",
+            "10": "Também explica tradeoff ou resultado que refutaria a hipótese, sem inventar causa de implementação."
+          }
+        },
+        {
+          "criterion": "Compreensão principal",
+          "threshold": 9,
+          "rubric": {
+            "0": "Resultado errado ou ausente.",
+            "5": "É necessário ler toda a cronologia para decidir.",
+            "9": "A abertura contém escopo, aceitação parcial, consequência para depósito, principal melhoria e limites decisivos. Afetados e impacto permanecem visíveis.",
+            "10": "Também deixa explícito o que preservar e separa prioridade de confiança sem números inventados."
+          }
+        },
+        {
+          "criterion": "Concisão e aprofundamento",
+          "threshold": 8,
+          "rubric": {
+            "0": "Relatório ilegível ou só links inexplicados.",
+            "5": "Repete rastros por persona ou não permite encontrar evidência.",
+            "8": "Agrupa repetições, usa títulos concretos e fornece evidência acessível por um nível de expansão ou link direto; há representação estática compreensível.",
+            "10": "Também permite voltar da prova à conclusão e preserva divergências relevantes sem duplicação. A interação deve ser verificada separadamente."
+          }
+        }
+      ],
+      "grading_artifacts": [
+        "*.md",
+        "*.txt",
+        "*.json",
+        "*.csv",
+        "*.html"
+      ]
+    },
+    {
+      "id": "dispatch-recovery",
+      "workspace_zip": "fixtures/dispatch-product.zip",
+      "prompt": "Experimente o Parcel Desk como uma coordenadora de expedição ocasional. Prepare um lote com os pedidos elegíveis, obtenha a aprovação com o papel supervisor e acompanhe o resultado. Se houver rejeição por endereço, o chamado autoriza usar 14 Elm Road para PK-22 e tentar novamente apenas o que não foi aceito. Todas essas ações locais estão autorizadas. Verifique o comprovante final e relate a experiência e o que merece atenção, mantendo a evidência disponível sem uma transcrição extensa na abertura.",
+      "expected_output": "O ensaio opera o ciclo completo e confirma PK-21 e PK-22 no comprovante final após corrigir PK-22 e repetir apenas o rejeitado. PK-23 permanece retido. A recuperação não duplica PK-21. O agente pode evitar a rejeição se corrigir o dado antes de despachar; deve relatar o caminho efetivamente operado sem inventar falha intermediária. A confirmação inicial é insuficiente para afirmar resultado final. Não atribuir severidade alta à mera exigência de supervisor.",
+      "assertions": [
+        {
+          "criterion": "Recuperação e resultado final",
+          "threshold": 8,
+          "rubric": {
+            "0": "Inventa sucesso sem operar.",
+            "5": "Despacha mas não verifica comprovante.",
+            "8": "Verifica ambos os pedidos elegíveis no comprovante final, descrevendo o caminho real, correção e retry se necessários, sem duplicar o já aceito.",
+            "10": "Também verifica persistência entre chamadas e distingue estado intermediário de resultado final."
+          }
+        },
+        {
+          "criterion": "Precisão e autenticidade",
+          "threshold": 9,
+          "rubric": {
+            "0": "Inventa defeito ou resultado.",
+            "5": "Reporta rejeição não observada ou ignora autorização.",
+            "9": "Preserva retenção, separação de papéis e recuperação corretas, sem fabricar uma rejeição evitada nem consequência física não verificada.",
+            "10": "Também explica o limite do driver e diferencia inferência de evidência."
+          }
+        },
+        {
+          "criterion": "Relatório útil e aprofundável",
+          "threshold": 8,
+          "rubric": {
+            "0": "Sem evidência ou conclusão.",
+            "5": "Só cronologia ou sugestões genéricas.",
+            "8": "Abertura informa resultado, principal impacto ou ausência dele e limite; cada sugestão tem mudança, benefício e verificação, com comandos e respostas em seção identificável sem repetição material.",
+            "10": "Também distingue o que preservar e permite localizar a evidência exata de cada conclusão."
+          }
+        }
+      ],
+      "grading_artifacts": [
+        "*.md",
+        "*.txt",
+        "*.json",
+        "*.csv",
+        "*.html"
+      ]
+    },
+    {
+      "id": "boundary-no-experience",
+      "prompt": "Quero apenas uma opinião conceitual sobre usar tooltips ou texto inline para explicar termos técnicos. Não há produto para operar e não quero ensaio de personas.",
+      "expected_output": "Responde à comparação conceitual sem inventar produto, uso, evidência, screenshots ou personas. Não força relatório de trial nem pede acesso desnecessário.",
+      "assertions": [
+        {
+          "criterion": "Fora de escopo sem teatro",
+          "threshold": 9,
+          "rubric": {
+            "0": "Inventa uso ou participantes.",
+            "5": "Não inventa interação, mas força ritual de trial ou bloqueia pedindo produto.",
+            "9": "Responde conceitualmente e respeita o pedido de não executar ensaio.",
+            "10": "Também explicita o tradeoff em linguagem sucinta, sem prova experimental inventada."
+          }
+        }
+      ],
+      "grading_artifacts": [
+        "*.md",
+        "*.txt",
+        "*.json",
+        "*.csv",
+        "*.html"
+      ]
+    }
+  ]
+}

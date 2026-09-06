@@ -8,6 +8,7 @@ license information where applicable.
 
 | Skill | Category | Purpose |
 |---|---|---|
+| `code-craftsmanship-refactor` | General | Polish existing code for clarity, cohesion, organization, and useful documentation while preserving behavior. |
 | `chrome-devtools-wsl2` | General | Launch and attach Windows Chrome for browser automation from WSL2. |
 | `council` | Adapted | Run a structured, delegated, multi-perspective council. |
 | `user-trials` | General | Test products through grounded user personas operating browser, CLI, or API surfaces. |
@@ -97,6 +98,12 @@ node scripts/evaluate-skills.ts --skill authoring-skills --eval migration-discov
 node scripts/benchmark-skills.ts --participant /tmp/brainstorm-ideas --participant /tmp/other-brainstorm --evals /path/to/shared-evals.json --eval migration-discovery --eval boundary-case
 ```
 
+On a managed Codex host that rejects candidate shell commands before they can
+read staged skills or fixtures, add `--approve-for-me` to `evaluate-skills.ts`.
+This keeps the candidate in the workspace-write sandbox while routing eligible
+approval requests through auto-review. Do not combine it with a Codex
+`--sandbox` flag; the runner selects exactly one permission mode.
+
 `evaluate-skills.ts` and `benchmark-skills.ts` deliberately answer different
 questions:
 ```mermaid
@@ -130,6 +137,25 @@ extracts it with `unzip` into an isolated `inputs/workspace`, and uses that
 workspace as the runtime CWD. This is generic; a code-review skill can infer
 Git refs from a Git workspace, while another skill may use an ordinary project
 archive. ZIP extraction therefore requires `unzip` on `PATH`.
+
+For tasks delivering report files, an eval can declare `grading_artifacts`, for
+example `["*.md", "*.txt", "*.csv"]` or `["report.md", "evidence.json"]`. The grader receives
+these text files alongside the final answer without needing filesystem access.
+Globs match only the output directory's top level, excluding dotfiles and harness
+`timing.json`; paths resolving outside it
+are excluded. The packet records hashes, missing files and truncation, with caps
+of 32 files, 24,000 characters per file and 60,000 overall (files above 1 MB are
+omitted). Inspect `grading-artifacts.json` when interpreting scores. Use the same
+selection for every variant. HTML is supplied as a source excerpt with scripts,
+styles, comments and embedded data URLs omitted; its hash identifies the original
+file. Text grading does not validate rendered figures,
+links, keyboard operation or accessibility; inspect those separately.
+
+A `--codex-config` override can use the whole quoted value `"${output_dir}"`
+to receive that candidate's absolute evidence directory, escaped as a TOML string.
+The browser runner uses it for its MCP process's temporary directory, retaining
+the server's file-writing restriction while allowing captures inside `outputs`.
+This does not change the candidate sandbox or the grader's read-only access.
 
 An eval may require a SARIF result without exposing its reference answer to
 the candidate:

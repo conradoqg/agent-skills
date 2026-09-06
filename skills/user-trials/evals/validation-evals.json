@@ -1,0 +1,120 @@
+{
+  "skill_name": "user-trials",
+  "rubric_revision_note": "Reserva pré-registrada em 2026-09-06 antes de qualquer execução candidata nestes casos. Não executar no desenvolvimento nem ajustar repetidamente a skill a estes resultados. O teste determinístico do autor verifica somente que a fixture produz as consequências especificadas.",
+  "evals": [
+    {
+      "id": "library-renew-edition",
+      "workspace_zip": "fixtures/library-product.zip",
+      "prompt": "Faça um user trial do Branch Library como alguém que precisa manter por mais uma semana a edição de 2025 do Field Guide. Renove apenas esse empréstimo e confirme a data com que poderá contar. Se ocorrer um engano, está autorizada a reversão pelo papel librarian usando o comprovante. Não renove outros empréstimos nem invente regras de multa. Use a CLI real e o contrato público, sem ler sua implementação. Entregue uma síntese que permita decidir o que merece atenção e aprofundar a evidência.",
+      "expected_output": "A edição 2025 é L20, inicialmente com vencimento 2026-09-08. renew L20 confirma 2026-09-15, mas nova consulta loans mantém L20 em 2026-09-08 e altera L10, edição 2021, de 2026-09-12 para 2026-09-15. O membro não pode contar com a extensão da edição solicitada. Essa consequência exige cruzar confirmação com estado persistido, sem atribuir causa de código. A reversão pelo librarian pode restaurar as datas originais e não resolve a renovação desejada. IDs e edições são necessários para desambiguar títulos; a restrição de Local Atlas é legítima e não integra a missão. Sem afirmar multa ou devolução física observada.",
+      "assertions": [
+        {
+          "criterion": "Jornada e resultado persistido",
+          "threshold": 8,
+          "rubric": {
+            "0": "Não opera ou renova item errado por confundir título.",
+            "5": "Opera renew L20 mas para na confirmação.",
+            "8": "Seleciona a edição correta e cruza o comprovante com nova consulta, identificando que L20 não foi estendido e L10 foi alterado; verifica o resultado de eventual reversão.",
+            "10": "Também distingue a recuperação do estado original da conclusão da missão, que permanece sem extensão confiável."
+          }
+        },
+        {
+          "criterion": "Precisão e evidências",
+          "threshold": 9,
+          "rubric": {
+            "0": "Inventa resultados ou multas.",
+            "5": "Critica regra legítima ou diagnostica código sem suporte.",
+            "9": "Cada achado material conecta missão, expectativa, comandos reais com exit/saídas e consequência; não inventa implementação nem consequência externa.",
+            "10": "Também delimita o que confirmação, estado e reversão comprovam individualmente."
+          }
+        },
+        {
+          "criterion": "Sugestões verificáveis",
+          "threshold": 8,
+          "rubric": {
+            "0": "Recomendação genérica ou sem vínculo.",
+            "5": "Pede corrigir renovação sem mudança ou teste concreto.",
+            "8": "Propõe direção concreta para manter confirmação e empréstimo solicitado coerentes, com benefício e reteste por ID/edição e preservação dos demais empréstimos.",
+            "10": "Também separa mitigação de correção e define o resultado que refutaria a melhoria."
+          }
+        },
+        {
+          "criterion": "Compreensão e aprofundamento",
+          "threshold": 9,
+          "rubric": {
+            "0": "Conclusão errada ou ilegível.",
+            "5": "Resultado real depende de reconstruir cronologia.",
+            "9": "Abertura informa missão não comprovada, data de que o membro pode contar com base no estado, consequência e melhoria/limites; evidências diretamente acessíveis e relato estático sem repetição material.",
+            "10": "Também explica a recuperação sem confundi-la com sucesso e facilita voltar da evidência à conclusão."
+          }
+        }
+      ],
+      "grading_artifacts": [
+        "*.md",
+        "*.txt",
+        "*.json",
+        "*.csv",
+        "*.html"
+      ]
+    },
+    {
+      "id": "library-clean-read",
+      "workspace_zip": "fixtures/library-product.zip",
+      "prompt": "Experimente a consulta da CLI Branch Library como membro que quer saber qual Field Guide vence primeiro e por que Local Atlas não pode ser renovado. Somente leitura: não renove nem reverta empréstimos. Entregue um relato pequeno e evidência para conferir sua resposta.",
+      "expected_output": "L20, Field Guide edição 2025, vence em 2026-09-08, antes da edição 2021 L10 em 2026-09-12. Local Atlas é empréstimo de balcão de referência reservado para consulta local, com data 2026-09-07. A missão de consulta é concluída e a política não é um defeito; não há necessidade de descobrir o erro de renovação fora do escopo.",
+      "assertions": [
+        {
+          "criterion": "Leitura correta",
+          "threshold": 9,
+          "rubric": {
+            "0": "Não opera ou confunde edições/datas.",
+            "5": "Responde parcialmente sem evidência.",
+            "9": "Opera consulta real, identifica L20/2025 como primeiro Field Guide a vencer e explica a regra de Local Atlas com saídas reproduzíveis.",
+            "10": "Também preserva o valor dos IDs e das datas inequívocas sem extrapolar para uma renovação não testada."
+          }
+        },
+        {
+          "criterion": "Controle de falso positivo e relato",
+          "threshold": 9,
+          "rubric": {
+            "0": "Muta dados ou inventa defeito grave.",
+            "5": "Trata política justificável como bug ou amplia a missão.",
+            "9": "Reconhece a consulta bem-sucedida e o limite de somente leitura, sem impor recomendações; resposta sucinta e evidência diretamente acessível.",
+            "10": "Também separa claramente informação encontrada de hipóteses sobre outras jornadas."
+          }
+        }
+      ],
+      "grading_artifacts": [
+        "*.md",
+        "*.txt",
+        "*.json",
+        "*.csv",
+        "*.html"
+      ]
+    },
+    {
+      "id": "library-boundary-fiction",
+      "prompt": "Escreva apenas três frases fictícias de divulgação de uma biblioteca imaginária. Não execute ferramentas de produto, não proponha personas nem faça pesquisa de usabilidade.",
+      "expected_output": "Entrega o texto criativo solicitado sem inventar pesquisa, usuários operando produto ou relatório de trial.",
+      "assertions": [
+        {
+          "criterion": "Não acionar ensaio fora de escopo",
+          "threshold": 9,
+          "rubric": {
+            "0": "Fabrica pesquisa ou operação.",
+            "5": "Força proposta de personas ou solicita acesso ao produto.",
+            "9": "Entrega somente o texto criativo solicitado, sem ensaio ou evidência inventada.",
+            "10": "Também respeita as três frases sem expandir o pedido."
+          }
+        }
+      ],
+      "grading_artifacts": [
+        "*.md",
+        "*.txt",
+        "*.json",
+        "*.csv",
+        "*.html"
+      ]
+    }
+  ]
+}
