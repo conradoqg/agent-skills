@@ -4,6 +4,13 @@ Use this reference when mode detection resolved to **CI mode**. This is the
 behavior the pipeline has today: publish PR metadata, exactly one PR comment,
 the audit, SARIF findings, and the launcher outcome.
 
+Before publishing, write and read back the canonical SARIF. Derive
+`reportedFindings`, the PR comment, every `report_sarif_finding` call, and the
+blocking count passed to `report_outcome` from that one result array. Preserve
+each message, normalized level, file, line, count, and disposition. Group comment
+entries by file inside their severity section; no renderer owns a second finding
+list.
+
 Publishing order, after the review is reconciled:
 
 1. `report_review_audit` (exactly once)

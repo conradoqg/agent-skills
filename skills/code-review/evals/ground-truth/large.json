@@ -1,5 +1,6 @@
 {
   "matching_note": "Levels are assigned from the consequence of each defect and are stated independently of any reviewer's rubric: a reachable security or authorization failure, data loss, a broken consumer contract, injection, or a broken deploy gate is error; a degraded behavior, an ambiguous gap, or a misleading-but-not-inverted signal is warning. Private evaluator material: the fixture carries no annotation of any kind. Each finding is anchored at the offending statement in the HEAD version of its file, and the harness matches on path, SARIF level, and line within line_tolerance. Levels follow the skill's severity mapping (CRITICAL/HIGH -> error, MEDIUM -> warning, LOW -> note). requires_reading lists the unchanged files a reviewer must open before the impact is visible; non_findings documents the decoys, the pre-existing defects, and the defect introduced and reverted inside the range, none of which may be reported.",
+  "audit_note": "large-22 and large-23 were added after observing candidate reports. These post-observation changes are retained because their consequences are independently verifiable from source. For large-22, the newly wired publish step exits successfully with a configured token but performs no upload or artifact emission, so CI reports publication success when nothing was published. For large-23, the weekly maintenance command constructs per-workspace index names that no migration creates, so its first ordinary workspace aborts the job before any index is rebuilt. A separately observed adjustment-path tenant disclosure was not retained as another expected finding because restoring the tenant-scoped repository contract in large-04 necessarily fixes that manifestation; counting both would duplicate one minimal fix.",
   "fixture": {
     "branch": "feature/billing-tenant-hardening",
     "commits": 33,
@@ -33,7 +34,7 @@
       "line": 6,
       "category": "data-persistence",
       "title": "Invoice cache key lost its tenant segment",
-      "impact": "The tenantId parameter is now unused, so two tenants holding the same invoice id share a cache entry. The unchanged read path caches and serves whatever landed first, which is cross-tenant disclosure.",
+      "impact": "The tenantId parameter is now unused while the unchanged shared read path returns a cache hit before its tenant-scoped repository lookup. Once one tenant's invoice is cached, another tenant that requests that invoice ID receives the cached object without an ownership check, which is cross-tenant disclosure even though invoice IDs are globally unique.",
       "requires_reading": [
         "apps/api/src/invoices/service.ts"
       ]
@@ -215,7 +216,7 @@
       "line": 14,
       "category": "data-persistence",
       "title": "Adjustment write dropped its optimistic concurrency guard",
-      "impact": "The read-modify-write no longer checks the version it read, so two concurrent operator adjustments silently overwrite each other instead of returning a conflict. A committed write is lost with no error, no conflict and no record that it happened, which is data loss rather than a tuning concern.",
+      "impact": "The pre-existing exported adjustment operation remains part of the application API, but its read-modify-write no longer checks the version it read. Two concurrent operator adjustments silently overwrite each other instead of returning a conflict, so a committed write is lost with no error or record.",
       "requires_reading": [
         "apps/api/src/invoices/repository.ts"
       ]
@@ -253,6 +254,10 @@
       "severity": "HIGH",
       "path": "apps/api/src/auth/session-cache.ts",
       "line": 6,
+      "acceptable_lines": [
+        6,
+        18
+      ],
       "category": "security",
       "title": "Roles are cached for an hour with no invalidation on revocation",
       "impact": "The unchanged revocation path deletes the row and the session entry but not this cache, so a revoked staff role keeps working for up to an hour. An authorization decision that survives its own revocation for an hour is a bypass with a time bound, not a caching preference.",
@@ -275,18 +280,6 @@
       ]
     },
     {
-      "id": "large-20",
-      "rule_id": "debug-endpoints-in-production",
-      "level": "warning",
-      "severity": "MEDIUM",
-      "path": "infra/config/api.yaml",
-      "line": 9,
-      "category": "security",
-      "title": "Debug endpoints enabled in the production overlay",
-      "impact": "This overlay carries NODE_ENV=production, so the triage endpoints ship to production with no separate gate or expiry.",
-      "requires_reading": []
-    },
-    {
       "id": "large-21",
       "rule_id": "async-guard-not-awaited",
       "level": "error",
@@ -299,6 +292,37 @@
       "requires_reading": [
         "apps/api/src/middleware/index.ts",
         "apps/api/src/admin/routes.ts"
+      ]
+    },
+    {
+      "id": "large-22",
+      "rule_id": "coverage-upload-noop",
+      "level": "warning",
+      "severity": "MEDIUM",
+      "path": "scripts/publish-coverage.mjs",
+      "line": 7,
+      "category": "observability",
+      "title": "Coverage publication reports success without publishing anything",
+      "impact": "The new workflow invokes this script as its coverage publication step with COVERAGE_TOKEN, but the configured path only prints an upload message and exits successfully. CI therefore presents a successful publication signal while producing no upload or coverage artifact.",
+      "requires_reading": [
+        ".github/workflows/ci.yml"
+      ]
+    },
+    {
+      "id": "large-23",
+      "rule_id": "reindex-target-missing",
+      "level": "error",
+      "severity": "HIGH",
+      "path": "scripts/maintenance/reindex.mjs",
+      "line": 10,
+      "category": "operations",
+      "title": "Weekly reindex job targets indexes that do not exist",
+      "impact": "The changed maintenance loop invokes a slug-prefixed invoices index for every workspace, but the complete migration set creates only shared invoices indexes. The first ordinary workspace therefore makes psql fail and aborts the weekly cron before it rebuilds any index.",
+      "requires_reading": [
+        "db/migrations/0001_init.sql",
+        "db/migrations/0007_add_invoice_currency.sql",
+        "db/migrations/0008_rename_aging_index.sql",
+        "infra/config/cron.yaml"
       ]
     }
   ],
@@ -336,7 +360,7 @@
     {
       "kind": "decoy",
       "path": "infra/config/api.yaml",
-      "why": "usageMeterPreview defaults to false; only debugEndpoints is a finding."
+      "why": "usageMeterPreview remains false, and the repository has no reader or endpoint wired to debugEndpoints; changing the unused flag alone has no demonstrated runtime consequence."
     },
     {
       "kind": "pre-existing",
@@ -352,6 +376,11 @@
       "kind": "fixed-in-range",
       "path": "packages/shared/src/pagination.ts",
       "why": "A clamp off-by-one is introduced and reverted inside the range, so it is absent from main...HEAD."
+    },
+    {
+      "kind": "duplicate-root-cause",
+      "path": "apps/api/src/invoices/adjustments.ts",
+      "why": "The co-changed caller exposes the cross-tenant consequence of large-04, but restoring findInvoice's tenant parameter and predicate necessarily fixes that manifestation too; it is evidence for the repository-contract finding, not a second root cause."
     }
   ]
 }

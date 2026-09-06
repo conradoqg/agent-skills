@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "name": "local-code-review-v1",
+  "fixture_instructions": "allow-and-fingerprint",
+  "candidate": {
+    "filesystem": "workspace-write",
+    "mcp": "disabled",
+    "network": "disabled"
+  },
+  "grader": {
+    "filesystem": "read-only",
+    "mcp": "disabled",
+    "network": "disabled"
+  }
+}

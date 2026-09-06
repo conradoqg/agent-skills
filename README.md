@@ -150,15 +150,19 @@ the candidate:
 ```
 
 The runner injects the exact artifact path and SARIF 2.1.0 result contract into the candidate prompt; participant skills do not need artifact instructions. Candidates may still give a normal user-facing final response. The runner
-validates SARIF 2.1.0, safe repository-relative locations, and matches it
-against private ground truth by path, line, `ruleId`, and SARIF level. SARIF is
-a hard gate and is recorded in `grading.json` and the final report. Without
-`gates`, matching remains exact. Optional `gates` may set `min_recall` and
-per-level `min_recall_by_level` thresholds from 0 to 1, plus a non-negative
-integer `max_false_positives`; then unmatched expected findings are allowed
-only when all declared gates pass. Reports record recall, recall by level,
-false positives, and failed gates. Keep the ground truth outside `files` and
-never place it in a participant skill.
+validates SARIF 2.1.0 and safe repository-relative locations, then independently
+matches findings to private ground truth by defect mechanism and consequence.
+It scores root-cause recall separately from strict path, line, and SARIF-level
+agreement; candidate rule IDs do not decide semantic equivalence. SARIF is a
+hard gate and is recorded in `grading.json` and the final report. Without
+`gates`, every expected root cause must also meet the strict location/severity
+criteria and no semantic false positive is allowed. Optional `gates` may set
+`min_recall` and per-level `min_recall_by_level` thresholds from 0 to 1, plus a
+non-negative integer `max_false_positives`; then misses are allowed only when
+all declared gates pass. Reports preserve root and strict recall, recall by
+level, exact-severity rate, false positives, semantic evidence, and failed
+gates. Keep the ground truth outside `files` and never place it in a participant
+skill.
 
 The annotated ground-truth JSON must be the only place that knows the answer.
 A fixture that marks its own defects — a `// finding:` comment, a giveaway file
@@ -181,12 +185,36 @@ YAML with its findings spread about one per directory, drawn from defect classes
 the first has no instance of. A change that helps on only one of them is fitted to
 that one, which is the whole reason for keeping both.
 
+The complete `code-review` tuning history—including iterations, metric-schema
+boundaries, ground-truth corrections, failed approaches, token costs, handoff
+changes, and the stopping rule—is maintained in
+[`skills/code-review/evals/README.md`](skills/code-review/evals/README.md).
+
 The runner supports authenticated Codex and Kiro CLIs; use `--grader none` to
 capture runs without LLM assertion grading. Codex uses `codex exec --json`
 automatically and records task and grader token usage when terminal JSONL
 provides it. When terminal events carry unique IDs, the runner aggregates their
 usage and reports `token_usage_scope`; otherwise it records the final root
 event and labels it accordingly.
+
+Every eval suite must declare a versioned `runtime_profile`, relative to its
+`evals.json`. The bundled `local-code-review-v1` profile gives candidates an
+isolated local workspace and graders read-only access; both adapters disable
+MCP loading. Codex receives a fresh `CODEX_HOME` for every invocation (only
+authentication is linked) and performs an MCP preflight. Kiro receives a fresh
+`HOME` and generated agent with `mcpServers: {}` and `includeMcpJson: false`.
+The resulting JSON and report record the profile hash, CLI/runtime policy,
+fixture instruction hashes, and model provenance. `--model` remains optional
+for Codex; when absent, the report explicitly labels the CLI default as
+unattested rather than guessing its resolved model.
+
+Both `evaluation.json` and `benchmark.json` also contain
+`standardized_output` (schema version 1). It is the stable caller-facing
+envelope: `variant_results` has status, runtime/profile, aggregate scores,
+SARIF, token and duration metrics, and artifact paths for every variant.
+`comparison` supplies deltas against `without_skill` when available (or
+`old_skill` otherwise). The detailed `results` array remains the audit record
+and preserves each agent's original output.
 
 Kiro runs invoke exactly `kiro-cli chat --no-interactive --wrap never` plus any
 configured `--agent` and `--effort`, for example:

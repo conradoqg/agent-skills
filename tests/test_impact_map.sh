@@ -87,7 +87,7 @@ PY
 git add -A
 git commit --quiet -m "raise the retry ceiling and simplify the pool helper"
 
-AI_OUTPUT_DIR="$out" sh "$SCRIPT" main...HEAD > "$out/result.json"
+AI_OUTPUT_DIR="$out" "$SCRIPT" main...HEAD > "$out/result.json"
 
 impact="$out/pr-context/impact"
 fail() { echo "FAIL: $1" >&2; echo "--- coupling.txt"; cat "$impact/coupling.txt"; echo "--- removed-names.txt"; cat "$impact/removed-names.txt"; exit 1; }
