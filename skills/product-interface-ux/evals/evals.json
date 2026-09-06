@@ -1,0 +1,190 @@
+{
+  "skill_name": "product-interface-ux",
+  "runtime_profile": "../../../evals/runtime-profiles/local-code-review-v1.json",
+  "evals": [
+    {
+      "id": "apply-settings-flow",
+      "prompt": "Melhore a experiência deste formulário de configurações e descreva as alterações de implementação. Preserve o design visual existente; foque somente comportamentos que tenham consequência real para a pessoa que salva as alterações.",
+      "expected_output": "Uma proposta de implementação focada em labels persistentes, validação e foco recuperáveis, estado assíncrono honesto, confirmação de sucesso acessível e preservação de valores em falha, sem restyle subjetivo ou animação decorativa.",
+      "files": ["evals/fixtures/settings-form.html"],
+      "grading_artifacts": ["*.html"],
+      "assertions": [
+        {
+          "criterion": "Aplicação orientada por consequência",
+          "threshold": 8,
+          "rubric": {
+            "0": "Faz apenas restyle ou recomenda tendências sem corrigir o fluxo.",
+            "5": "Percebe alguns estados, mas entrega recomendações genéricas ou sem recuperação.",
+            "8": "Propõe labels persistentes, validação compreensível, busy sem perda de foco, sucesso anunciado e falha que preserva os valores, ligando cada mudança à tarefa de salvar.",
+            "10": "Também distingue requisitos de defaults contextuais, preserva o sistema visual e fornece verificações observáveis para teclado, erro e sucesso."
+          }
+        },
+        {
+          "criterion": "Roteamento e contenção de escopo",
+          "threshold": 8,
+          "rubric": {
+            "0": "Pede que o usuário escolha um modo ou redesenha toda a página.",
+            "5": "Atende ao formulário, mas carrega recomendações não relacionadas.",
+            "8": "Age como tarefa de criação/alteração sem expor modos e limita-se a forms, estados, feedback e acessibilidade aplicáveis.",
+            "10": "Também nomeia o que deliberadamente preserva e evita recipes irrelevantes."
+          }
+        }
+      ]
+    },
+    {
+      "id": "focused-modal-review",
+      "prompt": "Revise somente o modal de exclusão deste arquivo. Quero findings acionáveis; não altere o código.",
+      "expected_output": "Revisão focada que encontra semântica/teclado/foco e risco de exclusão sem recuperação, mas não critica radius, sombras ou a ausência de animação do card decorativo.",
+      "files": ["evals/fixtures/modal-review.html"],
+      "assertions": [
+        {
+          "criterion": "Findings focados e verificáveis",
+          "threshold": 9,
+          "rubric": {
+            "0": "Entrega checklist genérico ou ignora o modal solicitado.",
+            "5": "Aponta acessibilidade vagamente, sem consequência nem reprodução.",
+            "9": "Prioriza ativação por div, ausência de semântica/foco/Escape/retorno e exclusão sem recuperação, com evidência, consequência, correção mínima e teste.",
+            "10": "Também separa observado de inferido, tenta refutar candidatos e agrupa manifestações da mesma causa."
+          }
+        },
+        {
+          "criterion": "Resistência a gosto e escopo indevido",
+          "threshold": 9,
+          "rubric": {
+            "0": "Reprova a estética ou revisa componentes fora do modal.",
+            "5": "Mistura um finding funcional com sugestões visuais opcionais não pedidas.",
+            "9": "Não transforma radius, sombra, cor não semântica ou ausência de motion em defeito e mantém o escopo no modal.",
+            "10": "Explicita que preferências visuais preservadas não recebem severidade."
+          }
+        }
+      ]
+    },
+    {
+      "id": "general-product-review",
+      "prompt": "Faça uma revisão geral desta interface web de produto baseada em evidência. O arquivo é estático e não há browser disponível neste caso.",
+      "expected_output": "Auditoria estática priorizada que identifica foco invisível, drag como único caminho, status assíncrono não anunciado e motion contínuo sem redução; preserva paginação por URL e validação no submit; declara comportamento dinâmico como não verificado.",
+      "files": ["evals/fixtures/general-product.html"],
+      "assertions": [
+        {
+          "criterion": "Cobertura geral com priorização",
+          "threshold": 8,
+          "rubric": {
+            "0": "Lista estilo ou todos os padrões possíveis sem inspecionar o arquivo.",
+            "5": "Encontra parte dos problemas, mas sem consequência ou prioridade.",
+            "8": "Prioriza foco invisível, alternativa ao drag, anúncio do status e reduced motion, cada qual com impacto, evidência, correção e verificação.",
+            "10": "Também apresenta mapa compacto de cobertura, deduplica causas e mantém severidade independente da confiança."
+          }
+        },
+        {
+          "criterion": "Honestidade da evidência",
+          "threshold": 9,
+          "rubric": {
+            "0": "Afirma ter operado a interface ou provado usabilidade.",
+            "5": "Menciona a limitação, mas descreve resultados dinâmicos como observados.",
+            "9": "Distingue código observado, comportamento inferido e interações não verificadas; não alega browser nem pesquisa com usuários.",
+            "10": "Também lista os testes dinâmicos exatos necessários para fechar as lacunas."
+          }
+        },
+        {
+          "criterion": "Preservação de comportamento válido",
+          "threshold": 9,
+          "rubric": {
+            "0": "Exige infinite scroll, live validation ou restyle sem motivo.",
+            "5": "Não inventa defeitos graves, mas deixa de reconhecer os controles válidos.",
+            "9": "Preserva paginação endereçável por URL, labels persistentes e validação no submit; não exige recipes alternativos sem evidência.",
+            "10": "Explica por que esses padrões são adequados no contexto e não apenas ausência de findings."
+          }
+        }
+      ]
+    },
+    {
+      "id": "clean-interface-no-false-positive",
+      "prompt": "Revise esta interface e reporte somente problemas objetivos com consequência para a tarefa. Se não houver finding material, diga isso claramente.",
+      "expected_output": "Revisão contida sem defeitos inventados: o formulário usa labels, foco, status live, erro recuperável, controle nativo e reduced motion; eventuais preferências visuais ficam fora dos findings.",
+      "files": ["evals/fixtures/clean-interface.html"],
+      "assertions": [
+        {
+          "criterion": "Ausência de falso positivo",
+          "threshold": 9,
+          "rubric": {
+            "0": "Inventa falhas ou prescreve redesign/motion.",
+            "5": "Hedgeia com riscos genéricos sem evidência.",
+            "9": "Declara que não encontrou finding material no escopo estático e preserva os comportamentos corretos observados.",
+            "10": "Também separa a ausência de findings das limitações da inspeção e sugere apenas verificações dinâmicas proporcionais."
+          }
+        }
+      ]
+    },
+    {
+      "id": "named-pattern-operational-guidance",
+      "prompt": "Explique de forma operacional como aplicar Hover Trap, Bulk Actions, Autosave, Scroll-Driven Animations, Charts That Lie e Peak-End Rule em uma interface web de produto. Para cada um, quero saber quando usar, implementação mínima e como verificar.",
+      "expected_output": "Orientação aprofundada por padrão, com condição, consequência, implementação mínima, exceção ou contraponto e verificação observável; números do catálogo permanecem calibráveis e Peak-End Rule não vira regra universal nem técnica manipulativa.",
+      "assertions": [
+        {
+          "criterion": "Profundidade operacional por padrão",
+          "threshold": 9,
+          "rubric": {
+            "0": "Repete slogans ou entrega uma lista superficial sem aplicação.",
+            "5": "Explica parte dos padrões, mas omite condições, contrapontos ou verificações.",
+            "9": "Para os seis padrões, liga problema e condição a uma implementação mínima e a uma verificação observável, incluindo alternativas e falhas relevantes.",
+            "10": "Também distingue força, evidência necessária e limites de cada recomendação sem perder concisão operacional."
+          }
+        },
+        {
+          "criterion": "Contenção contra prescrições do catálogo",
+          "threshold": 9,
+          "rubric": {
+            "0": "Transforma todos os detalhes editoriais, métricas e números em regras obrigatórias.",
+            "5": "Faz ressalvas gerais, mas ainda prescreve tempos, layouts ou psicologia sem condições.",
+            "9": "Trata tempos, thresholds e recipes como calibráveis; rejeita Peak-End como gate e preserva requisitos funcionais, acessíveis e de dados.",
+            "10": "Também identifica explicitamente quais alegações exigem produto, browser, performance ou pesquisa para serem confirmadas."
+          }
+        }
+      ]
+    },
+    {
+      "id": "native-first-component-recipes",
+      "prompt": "Estamos planejando criar do zero um date picker, um dropdown, um campo OTP segmentado e uma área de upload somente por drag-and-drop. Defina as regras de UX e os defaults exatos para esses quatro componentes web.",
+      "expected_output": "Decisão native-first que questiona a necessidade dos quatro widgets customizados, mas fornece contratos operacionais detalhados para os casos justificados: teclado, nomes/estados, digitação/paste/autofill, alternativa ao drag, validação, recuperação, responsividade e testes, sem defaults numéricos universais.",
+      "assertions": [
+        {
+          "criterion": "Profundidade dos recipes de componente",
+          "threshold": 9,
+          "rubric": {
+            "0": "Aceita os quatro widgets e recomenda apenas aparência.",
+            "5": "Menciona acessibilidade, mas não define contratos de interação, estado e recuperação por componente.",
+            "9": "Para date picker, dropdown, OTP e upload, define condições de uso, interação mínima, estados/falhas, alternativa acessível e verificação específica.",
+            "10": "Também cobre locale/timezone, IME/autofill, arquivos individuais e progressive enhancement quando aplicáveis."
+          }
+        },
+        {
+          "criterion": "Decisão native-first sem absolutismo",
+          "threshold": 9,
+          "rubric": {
+            "0": "Impõe implementações customizadas e números arbitrários como padrão.",
+            "5": "Prefere nativo vagamente, mas não oferece critério para sair dele.",
+            "9": "Usa controles nativos como baseline, exige uma lacuna demonstrada para customizar e recusa defaults exatos sem contexto ou teste.",
+            "10": "Também separa requisitos obrigatórios de strong defaults e opções contextuais para cada componente."
+          }
+        }
+      ]
+    },
+    {
+      "id": "boundary-premium-restyle",
+      "prompt": "Deixe esta interface mais premium: imponha golden ratio, cards com radius de 24px, glow roxo, parallax e animações em três camadas. Faça uma auditoria usando isso como padrão obrigatório.",
+      "expected_output": "Resposta que não trata essas preferências como requisitos de UX, não cria findings por sua ausência e redireciona a avaliação para consequências funcionais ou para um brief visual explicitamente aprovado.",
+      "assertions": [
+        {
+          "criterion": "Fronteira contra estética normativa",
+          "threshold": 9,
+          "rubric": {
+            "0": "Aceita todas as receitas como regras e produz uma auditoria estética.",
+            "5": "Questiona alguns valores, mas ainda os usa como quality gates.",
+            "9": "Recusa golden ratio, radius, glow, parallax e camadas obrigatórias como findings de UX; explica que só podem ser escolhas de direção visual.",
+            "10": "Também oferece um caminho útil: confirmar o brief visual ou auditar somente clareza, acessibilidade, estados, feedback e desempenho."
+          }
+        }
+      ]
+    }
+  ]
+}

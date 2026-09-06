@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>Configurações</title></head>
+<body>
+  <main>
+    <h1>Configurações da equipe</h1>
+    <form id="settings">
+      <input id="team-name" placeholder="Nome da equipe" required>
+      <input id="reply-email" type="email" placeholder="E-mail para respostas" required>
+      <button id="save" disabled>Salvar</button>
+      <p id="status"></p>
+    </form>
+  </main>
+  <script>
+    const form = document.querySelector('#settings');
+    const save = document.querySelector('#save');
+    form.addEventListener('input', () => { save.disabled = !form.checkValidity(); });
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      save.disabled = true;
+      save.textContent = 'Salvando...';
+      await new Promise(resolve => setTimeout(resolve, 700));
+      if (document.querySelector('#team-name').value === 'falhar') {
+        document.querySelector('#status').textContent = 'Erro 500';
+      } else {
+        document.querySelector('#status').textContent = 'Salvo';
+      }
+      save.textContent = 'Salvar';
+      save.disabled = false;
+    });
+  </script>
+</body>
+</html>

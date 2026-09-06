@@ -9,6 +9,7 @@ license information where applicable.
 | Skill | Category | Purpose |
 |---|---|---|
 | `code-craftsmanship-refactor` | General | Polish existing code for clarity, cohesion, organization, and useful documentation while preserving behavior. |
+| `product-interface-ux` | General | Create and review web product interfaces using evidence-backed interaction, state, accessibility, and motion behavior without prescribing aesthetics. |
 | `chrome-devtools-wsl2` | General | Launch and attach Windows Chrome for browser automation from WSL2. |
 | `council` | Adapted | Run a structured, delegated, multi-perspective council. |
 | `user-trials` | General | Test products through grounded user personas operating browser, CLI, or API surfaces. |

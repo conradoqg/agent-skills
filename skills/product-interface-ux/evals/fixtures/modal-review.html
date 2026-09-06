@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>Projeto</title>
+  <style>
+    .decorative-card { border-radius: 31px; box-shadow: none; padding: 2rem; }
+    .modal { position: fixed; inset: 25%; background: white; border: 1px solid #777; padding: 1rem; }
+    .hidden { display: none; }
+    .action { cursor: pointer; }
+  </style>
+</head>
+<body>
+  <main class="decorative-card">
+    <h1>Projeto Boreal</h1>
+    <button id="open">Excluir projeto</button>
+  </main>
+  <div id="modal" class="modal hidden">
+    <h2>Excluir?</h2>
+    <p>Esta ação remove o projeto.</p>
+    <div class="action" id="confirm">Sim</div>
+    <div class="action" id="cancel">Não</div>
+  </div>
+  <script>
+    const modal = document.querySelector('#modal');
+    document.querySelector('#open').onclick = () => modal.classList.remove('hidden');
+    document.querySelector('#cancel').onclick = () => modal.classList.add('hidden');
+    document.querySelector('#confirm').onclick = () => {
+      document.querySelector('main').remove();
+      modal.classList.add('hidden');
+    };
+  </script>
+</body>
+</html>

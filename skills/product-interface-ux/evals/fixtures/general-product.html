@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fila editorial</title>
+  <style>
+    :focus { outline: none; }
+    body { font-family: system-ui; max-width: 48rem; margin: 2rem auto; }
+    .pulse { animation: pulse 1s infinite alternate; }
+    @keyframes pulse { to { transform: scale(1.08); } }
+    .error { color: #c00; }
+  </style>
+</head>
+<body>
+  <header><h1>Fila editorial</h1></header>
+  <main>
+    <section aria-labelledby="queue-heading">
+      <h2 id="queue-heading">Itens pendentes</h2>
+      <p>Arraste para definir a prioridade.</p>
+      <ol id="queue">
+        <li draggable="true">Revisar contrato</li>
+        <li draggable="true">Publicar release notes</li>
+      </ol>
+    </section>
+
+    <form id="publish">
+      <h2>Publicar alterações</h2>
+      <label for="release-name">Nome da release</label>
+      <input id="release-name" required>
+      <button class="pulse">Publicar</button>
+      <p id="publish-status"></p>
+    </form>
+
+    <p class="error">Não foi possível sincronizar.</p>
+    <nav aria-label="Paginação">
+      <a href="?page=1" aria-current="page">1</a>
+      <a href="?page=2">2</a>
+    </nav>
+  </main>
+  <script>
+    document.querySelector('#publish').addEventListener('submit', event => {
+      event.preventDefault();
+      const status = document.querySelector('#publish-status');
+      status.textContent = 'Publicando...';
+      setTimeout(() => { status.textContent = 'Publicado'; }, 800);
+    });
+  </script>
+</body>
+</html>

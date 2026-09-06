@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Preferências</title>
+  <style>
+    :focus-visible { outline: 3px solid #1457d9; outline-offset: 3px; }
+    @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Preferências</h1>
+    <form id="preferences">
+      <label for="timezone">Fuso horário</label>
+      <select id="timezone" name="timezone">
+        <option value="America/Sao_Paulo">São Paulo</option>
+        <option value="UTC">UTC</option>
+      </select>
+      <button>Salvar preferências</button>
+      <p id="status" role="status" aria-live="polite"></p>
+    </form>
+    <details>
+      <summary>Opções avançadas</summary>
+      <p>Estas opções são usadas apenas por administradores.</p>
+    </details>
+  </main>
+  <script>
+    const form = document.querySelector('#preferences');
+    form.addEventListener('submit', async event => {
+      event.preventDefault();
+      const button = form.querySelector('button');
+      const status = document.querySelector('#status');
+      button.setAttribute('aria-disabled', 'true');
+      button.setAttribute('aria-busy', 'true');
+      status.textContent = 'Salvando preferências…';
+      try {
+        await Promise.resolve();
+        status.textContent = 'Preferências salvas.';
+      } catch {
+        status.textContent = 'Não foi possível salvar. Seus valores foram preservados; tente novamente.';
+      } finally {
+        button.removeAttribute('aria-disabled');
+        button.removeAttribute('aria-busy');
+      }
+    });
+  </script>
+</body>
+</html>
