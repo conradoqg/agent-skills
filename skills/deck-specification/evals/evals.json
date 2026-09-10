@@ -1,0 +1,77 @@
+{
+  "skill_name": "deck-specification",
+  "runtime_profile": "../../../evals/runtime-profiles/local-code-review-v1.json",
+  "evals": [
+    {
+      "id": "create-quarterly-decision-deck-spec",
+      "prompt": "Crie uma especificação format-neutral de 2 slides, sem renderizar a apresentação. Brief: reunião síncrona de 12 minutos com a VP de Operações e o diretor Financeiro; decisão solicitada: ampliar o piloto de onboarding de 100 para 500 contas. Notas disponíveis: 78 das 100 contas concluíram onboarding em até 7 dias, contra baseline de 62%; fonte é um extrato do dashboard interno de 1 a 30 de setembro de 2026, responsável Ana, sem link bruto disponível. Tickets de suporte foram 11 no piloto contra 8 no baseline, mas os períodos não são comparáveis. A acessibilidade ainda não foi definida. Marque incertezas como provisórias e cole na resposta o conteúdo completo de deck-spec.md e dos dois arquivos de slide, em blocos identificados; não grave arquivos no workspace.",
+      "expected_output": "Conteúdo integral inline de deck-spec.md e dois arquivos de slide completos, usando os dados fornecidos sem inventar evidência, marcando limitações e mantendo composição, acessibilidade e critérios de aceite neutros de tecnologia.",
+      "assertions": [
+        {
+          "criterion": "Contrato editorial completo",
+          "threshold": 8,
+          "rubric": {
+            "0": "Gera diretamente uma apresentação ou apenas lista títulos.",
+            "5": "Define narrativa, mas omite campos essenciais ou separação por slide.",
+            "8": "Especifica contexto, arco, mapa e cada slide com takeaway, conteúdo projetado, notas, evidência, intenção visual e critérios de aceite.",
+            "10": "Também explicita pressupostos, decisões abertas, acessibilidade, fallback e estado de maturidade sem inventar fatos."
+          }
+        },
+        {
+          "criterion": "Neutralidade de formato",
+          "threshold": 9,
+          "rubric": {
+            "0": "Prescreve HTML, CSS, objetos PowerPoint ou IDs de Google Slides.",
+            "5": "Evita código, mas ainda escolhe componentes ou geometria do renderer.",
+            "9": "Descreve hierarquia, relações e comportamento semanticamente, sem mecanismos específicos de plataforma.",
+            "10": "Também delimita claramente a responsabilidade do adaptador downstream."
+          }
+        }
+      ]
+    },
+    {
+      "id": "review-existing-deck-spec",
+      "prompt": "Faça somente a revisão desta especificação resumida; não edite arquivos. Estado do deck: Maturity CONFIRMED, Change policy EDITABLE, Approval DRAFT, aprovadora humana designada Ana e Lock authority Not applicable. Mapa: S01 abertura, S02 evidência, S03 decisão. Defeitos presentes: os arquivos de S01 e S02 declaram ambos ID S01; S02 projeta “crescimento de 18%” sem claim ID ou fonte e mistura “[nota ao apresentador: validar o período]” no texto projetado; S03 depende de uma animação para revelar a ressalva e não define estado inicial nem fallback estático. Retorne achados priorizados, correções e recomendação de estado.",
+      "expected_output": "Achados BLOCKER/MAJOR localizados em S01-S03, com impacto e correção para IDs, rastreabilidade, separação das notas e fallback; recomendação DRAFT, eventual reclassificação factual para PROVISIONAL e aprovação reservada à autoridade humana.",
+      "assertions": [
+        {
+          "criterion": "Revisão priorizada e acionável",
+          "threshold": 8,
+          "rubric": {
+            "0": "Aprova a especificação ou faz comentários genéricos.",
+            "5": "Identifica parte dos defeitos sem severidade ou correção.",
+            "8": "Reporta os defeitos em severidade, localização, impacto e correção proposta, sem editar os arquivos.",
+            "10": "Também relaciona dependências narrativas e factualidade repetida afetada."
+          }
+        },
+        {
+          "criterion": "Governança correta",
+          "threshold": 9,
+          "rubric": {
+            "0": "Marca o material como APPROVED ou altera a política de mudança sem autoridade.",
+            "5": "Evita aprovação indevida, mas mistura maturidade factual, política de mudança e aprovação.",
+            "9": "Mantém os três eixos independentes, recomenda DRAFT e pode rebaixar a maturidade factual da alegação sem fonte para PROVISIONAL.",
+            "10": "Também preserva Change policy EDITABLE, reserva aprovação para Ana e mantém Lock authority como Not applicable."
+          }
+        }
+      ]
+    },
+    {
+      "id": "boundary-powerpoint-how-to",
+      "prompt": "Como alterar a orientação dos slides de paisagem para retrato diretamente no Microsoft PowerPoint? Quero apenas os passos no aplicativo.",
+      "expected_output": "Instruções diretas de PowerPoint, sem criar deck-spec, iniciar revisão editorial ou forçar o fluxo de especificação.",
+      "assertions": [
+        {
+          "criterion": "Ausência de ativação indevida",
+          "threshold": 9,
+          "rubric": {
+            "0": "Cria ou exige uma especificação de deck em vez de responder à dúvida.",
+            "5": "Dá os passos, mas acrescenta um fluxo editorial de especificação desnecessário.",
+            "9": "Responde diretamente com os passos no PowerPoint, sem acionar deck-specification.",
+            "10": "Também alerta de forma concisa sobre redimensionamento ou reposicionamento do conteúdo após mudar a orientação."
+          }
+        }
+      ]
+    }
+  ]
+}
