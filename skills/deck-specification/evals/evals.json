@@ -4,9 +4,19 @@
   "evals": [
     {
       "id": "create-quarterly-decision-deck-spec",
-      "prompt": "Crie uma especificação format-neutral de 2 slides, sem renderizar a apresentação. Brief: reunião síncrona de 12 minutos com a VP de Operações e o diretor Financeiro; decisão solicitada: ampliar o piloto de onboarding de 100 para 500 contas. Notas disponíveis: 78 das 100 contas concluíram onboarding em até 7 dias, contra baseline de 62%; fonte é um extrato do dashboard interno de 1 a 30 de setembro de 2026, responsável Ana, sem link bruto disponível. Tickets de suporte foram 11 no piloto contra 8 no baseline, mas os períodos não são comparáveis. A acessibilidade ainda não foi definida. Marque incertezas como provisórias e cole na resposta o conteúdo completo de deck-spec.md e dos dois arquivos de slide, em blocos identificados; não grave arquivos no workspace.",
-      "expected_output": "Conteúdo integral inline de deck-spec.md e dois arquivos de slide completos, usando os dados fornecidos sem inventar evidência, marcando limitações e mantendo composição, acessibilidade e critérios de aceite neutros de tecnologia.",
+      "prompt": "Crie uma especificação format-neutral de 2 slides, sem renderizar a apresentação. Brief: reunião síncrona de 12 minutos com a VP de Operações e o diretor Financeiro; decisão solicitada: ampliar o piloto de onboarding de 100 para 500 contas. Notas disponíveis: 78 das 100 contas concluíram onboarding em até 7 dias, contra baseline de 62%; fonte é um extrato do dashboard interno de 1 a 30 de setembro de 2026, responsável Ana, sem link bruto disponível. Tickets de suporte foram 11 no piloto contra 8 no baseline, mas os períodos não são comparáveis. A acessibilidade ainda não foi definida. Marque incertezas como provisórias. No slide de evidência, inclua um rascunho visual textual de baixa fidelidade para eu conseguir imaginar a composição; ele não deve determinar a tecnologia ou o layout final. Cole na resposta o conteúdo completo de deck-spec.md e dos dois arquivos de slide, em blocos identificados; não grave arquivos no workspace.",
+      "expected_output": "Conteúdo integral inline de deck-spec.md e dois arquivos de slide completos, usando os dados fornecidos sem inventar evidência, marcando limitações e mantendo composição, acessibilidade e critérios de aceite neutros de tecnologia. O slide de evidência inclui um wireframe textual útil, explicitamente ilustrativo e não vinculante, coerente com o conteúdo e a hierarquia especificados.",
       "assertions": [
+        {
+          "criterion": "Rascunho visual compreensível e não vinculante",
+          "threshold": 8,
+          "rubric": {
+            "0": "Não inclui o rascunho solicitado ou renderiza uma apresentação final.",
+            "5": "Inclui um desenho decorativo, contraditório ou vago, sem ajudar a visualizar a composição.",
+            "8": "Inclui no slide de evidência um wireframe textual de baixa fidelidade com regiões, ênfase e fluxo coerentes com o conteúdo, identificado como ilustrativo e não vinculante.",
+            "10": "Também distingue o que deve ser preservado do que pode se adaptar, sem inventar conteúdo nem prescrever pixels, componentes ou mecanismos de uma plataforma."
+          }
+        },
         {
           "criterion": "Contrato editorial completo",
           "threshold": 8,

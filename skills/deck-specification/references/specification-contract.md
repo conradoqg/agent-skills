@@ -153,6 +153,20 @@ Specify communication semantics rather than a target layout implementation:
 Do not encode target-specific component names, class names, master/layout IDs,
 object IDs, fixed pixel coordinates, or animation APIs.
 
+### Low-fidelity visual sketch
+
+Add a text-only wireframe when prose leaves the approximate composition difficult
+for a requester or producer to picture. The sketch may show labeled content
+regions, relative emphasis, grouping, and reading flow. It is illustrative and
+non-binding: it must not introduce new projected content or override the slide's
+narrative role, exact projected content, composition intent, accessibility, or
+acceptance criteria.
+
+Keep the sketch format-neutral. Use approximate relationships rather than pixels,
+coordinates, aspect-ratio assumptions, master placeholders, CSS grids, renderer
+components, or native target objects. State what the adaptation must preserve and
+what may move or change shape. Use `Not applicable` when a sketch adds no clarity.
+
 ## Asset model
 
 An asset requirement records:

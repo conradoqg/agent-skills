@@ -76,6 +76,27 @@ field, hero, or another semantic form.]
 Describe communication semantics, not a target layout, component, master, CSS
 class, coordinate system, or object model.
 
+## Low-fidelity visual sketch
+
+**Purpose:** [Ambiguity this sketch resolves, or Not applicable.]
+**Status:** [Illustrative and non-binding, or Not applicable.]
+
+```text
+[Show approximate content regions, relative emphasis, and reading flow with a
+simple text wireframe. Use short labels or exact projected content already stated
+above; do not introduce new audience-visible copy here. Use Not applicable when
+a sketch adds no clarity.]
+```
+
+- **Interpretation:** [Explain the intended grouping, dominance, and sequence, or Not applicable.]
+- **Must preserve:** [Relationships that should survive adaptation, or Not applicable.]
+- **May adapt:** [Placement, proportions, or silhouette that may change by format, or Not applicable.]
+
+When used, the sketch supplements the normative `Projected content` and
+`Composition intent`; if it conflicts with either, those sections take
+precedence. Do not encode pixels, coordinates, slide-master regions, CSS grids,
+renderer components, or target object types.
+
 ## Asset requirements
 
 | Asset ID | Purpose | Source or creation brief | Policy | Constraints | Accessible description | Maturity |

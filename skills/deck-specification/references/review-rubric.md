@@ -114,7 +114,10 @@ For each slide, verify:
    annotations, and calls to action needed to author the slide.
 5. **Evidence:** claim IDs, source locators, maturity, and required context.
 6. **Composition intent:** visual form, focal point, hierarchy, relationship,
-   reading order, and density without target mechanics.
+   reading order, and density without target mechanics. When a visual sketch is
+   applicable, verify that it is legible, illustrative, non-binding, faithful to
+   projected content and composition intent, and free of target geometry or
+   components; accept `Not applicable` when prose is sufficient.
 7. **Assets:** purpose, source/brief, fidelity constraints, status, and accessible
    description.
 8. **Behavior:** complete default frame, optional response, and acceptable fallback.

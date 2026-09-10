@@ -113,8 +113,10 @@ Determine the mode from the request; do not ask the user to choose a label.
    customers, metrics, or product behavior.
 6. **Express visual and behavior intent semantically.** State focal point,
    hierarchy, relationships, reading order, density, asset purpose, default frame,
-   optional behavior, and acceptable fallback. Do not select target-specific
-   components or prescribe implementation mechanics.
+   optional behavior, and acceptable fallback. When spatial arrangement would
+   otherwise remain hard to picture, add a low-fidelity text sketch with labeled
+   content regions and approximate emphasis. Mark it illustrative and non-binding;
+   do not use exact geometry, target-specific components, or implementation mechanics.
 7. **Apply mode-specific change discipline.**
    - For Enrich, preserve the thesis, requested decision, `LOCKED` text, and stable
      IDs unless the user explicitly changes them.
