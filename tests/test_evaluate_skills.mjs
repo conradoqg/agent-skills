@@ -35,6 +35,7 @@ assert.deepEqual(collaborationFromJsonl(`status text\n${collaborationTrace}\n{in
   empty_wait_calls: 1,
   send_input_calls: 0,
   close_agent_calls: 1,
+  agents: [],
   role_prompts: { change_mapper: true, risk_verifier: false }
 });
 assert.deepEqual(
@@ -56,7 +57,8 @@ assert.deepEqual(
     empty_wait_calls: 0,
     send_input_calls: 0,
     close_agent_calls: 0,
-    role_prompts: { change_mapper: false, risk_verifier: false }
+    agents: [],
+  role_prompts: { change_mapper: false, risk_verifier: false }
   }
 );
 assert.equal(
@@ -86,7 +88,11 @@ assert.deepEqual(
     empty_wait_calls: 0,
     send_input_calls: 0,
     close_agent_calls: 0,
-    role_prompts: { change_mapper: true, risk_verifier: true }
+    agents: [
+      { thread_id: "mapper", parent_thread_id: "root", agent_path: "/root/change_mapper", completed: true },
+      { thread_id: "verifier", parent_thread_id: "root", agent_path: "/root/risk_verifier", completed: true }
+    ],
+  role_prompts: { change_mapper: true, risk_verifier: true }
   }
 );
 assert.equal(collaborationRequirementGrade({}, {}, true), null);
@@ -395,10 +401,11 @@ assert.deepEqual(withSkillResult.collaboration, {
   empty_wait_calls: 0,
   send_input_calls: 0,
   close_agent_calls: 0,
+  agents: [],
   role_prompts: { change_mapper: true, risk_verifier: true }
 });
 const isolatedCodexLog = await readFile(codexLog, "utf8");
-assert.match(isolatedCodexLog, /HOME=(\S+\/codex-home) CODEX_HOME=\1 mcp_preflight/);
+assert.match(isolatedCodexLog, /HOME=(\S+[\\/]codex-home) CODEX_HOME=\1 mcp_preflight/);
 assert.match(isolatedCodexLog, /exec --json[^\n]*--enable multi_agent/);
 assert.doesNotMatch(isolatedCodexLog.split("\n").find((line) => line.includes("--enable multi_agent")), /--ephemeral/);
 assert.equal(isolatedCodexLog.split("\n").filter((line) => line.includes("--enable multi_agent")).length, 1);
@@ -406,7 +413,7 @@ assert.match(await readFile(join(workspace, "iteration-1", "eval-one", "with_ski
 assert.equal(benchmark.standardized_output.schema_version, 1);
 assert.equal(benchmark.standardized_output.variant_results.with_skill.status, "passed");
 assert.equal(benchmark.standardized_output.comparison.baseline_variant, "without_skill");
-assert.equal(benchmark.standardized_output.variant_results.with_skill.artifacts[0].candidate_output, "eval-one/with_skill/outputs/last-message.md");
+assert.equal(benchmark.standardized_output.variant_results.with_skill.artifacts[0].candidate_output.replaceAll("\\", "/"), "eval-one/with_skill/outputs/last-message.md");
 assert.deepEqual(benchmark.summary.with_skill.task_token_usage, {
   input_tokens: 110,
   cached_input_tokens: 44,

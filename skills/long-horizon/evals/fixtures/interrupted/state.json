@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "id": "interrupted-sum",
+  "plan": "plan.md",
+  "plan_revision": 1,
+  "approved": true,
+  "status": "paused",
+  "requirements": [
+    {
+      "id": "R1",
+      "criterion": "result.txt contains the arithmetic sum of numbers.txt followed by newline",
+      "required": true
+    },
+    {
+      "id": "R2",
+      "criterion": "preserve input and record reproducible calculation",
+      "required": true
+    }
+  ],
+  "units": [
+    {
+      "id": "U1",
+      "goal": "sum all input numbers",
+      "requirements": [
+        "R1",
+        "R2"
+      ],
+      "depends_on": [],
+      "status": "awaiting_audit",
+      "audit": null
+    }
+  ],
+  "evidence": [],
+  "audits": [],
+  "facts": [],
+  "hypotheses": [
+    "Previous executor wrote a result but it has not been checked."
+  ],
+  "final_audit": null,
+  "next_step": "Reconcile the interrupted output before deciding whether to retry"
+}

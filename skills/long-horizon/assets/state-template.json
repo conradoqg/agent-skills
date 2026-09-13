@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "id": "replace-work-id",
+  "plan": "plan.md",
+  "plan_revision": 1,
+  "approved": false,
+  "status": "planning",
+  "requirements": [{"id": "R1", "criterion": "Replace with observable acceptance", "required": true}],
+  "units": [{"id": "U1", "goal": "Replace with bounded outcome", "requirements": ["R1"], "depends_on": [], "status": "pending", "audit": null}],
+  "evidence": [],
+  "audits": [],
+  "facts": [],
+  "hypotheses": [],
+  "final_audit": null,
+  "next_step": "Obtain contract approval and choose launch mode"
+}

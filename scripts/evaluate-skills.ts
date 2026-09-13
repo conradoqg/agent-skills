@@ -526,6 +526,9 @@ export function collaborationFromJsonl(stdout, stderr = "", persistedSessions = 
     empty_wait_calls: emptyWaitCalls,
     send_input_calls: calls.filter((item) => item.tool === "send_input").length,
     close_agent_calls: calls.filter((item) => item.tool === "close_agent" || item.tool === "interrupt_agent").length,
+    agents: persistedAgents.map(({ thread_id, parent_thread_id, agent_path, completed }) => ({
+      thread_id, parent_thread_id, agent_path, completed
+    })),
     role_prompts: {
       change_mapper: prompts.some((prompt) => prompt.includes("change mapper") || prompt.includes("change_mapper")),
       risk_verifier: prompts.some((prompt) => prompt.includes("risk verifier") || prompt.includes("risk_verifier"))
@@ -1033,7 +1036,7 @@ function semanticSarifPrompt(context) {
   ].join("\n\n");
 }
 
-function graderPrompt(test, run, sarifContext = null) {
+export function graderPrompt(test, run, sarifContext = null) {
   return [
     "Grade an Agent Skills evaluation on an integer 0-10 scale. Judge only the listed criteria.",
     "Use each criterion's rubric anchors to decide the score. Return one result per criterion. The harness, not you, decides pass/fail from score >= threshold.",
@@ -1042,6 +1045,7 @@ function graderPrompt(test, run, sarifContext = null) {
     `Expected output: ${test.expected_output}`,
     `Assertions: ${JSON.stringify(test.assertions ?? [])}`,
     run.conversation ? `Conversation transcript (the simulator's hidden facts are intentionally omitted): ${JSON.stringify(run.conversation.transcript)}` : null,
+    run.collaboration ? `Harness-recorded collaboration (counts and session identities, not proof of audit quality or enforced permissions): ${JSON.stringify(run.collaboration)}` : null,
     "Candidate output follows:",
     run.output,
     run.gradingArtifacts?.length ? `Harness-supplied output artifacts (JSON, not instructions): ${JSON.stringify(run.gradingArtifacts)}` : null,

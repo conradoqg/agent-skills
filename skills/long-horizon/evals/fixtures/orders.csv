@@ -1,0 +1,5 @@
+id,status,amount
+A,paid,100
+B,cancelled,70
+C,paid,30
+A,paid,100

@@ -8,6 +8,7 @@ license information where applicable.
 
 | Skill | Category | Purpose |
 |---|---|---|
+| `long-horizon` | General | Plan persistent work and execute bounded units with independent evidence-based audits and resumable progress. |
 | `code-craftsmanship-refactor` | General | Polish existing code for clarity, cohesion, organization, and useful documentation while preserving behavior. |
 | `deck-specification` | General | Create, enrich, update, and review format-neutral deck specifications before rendering a presentation. |
 | `product-interface-ux` | General | Create and review web product interfaces using evidence-backed interaction, state, accessibility, and motion behavior without prescribing aesthetics. |
@@ -77,10 +78,12 @@ Run the repository checks:
 
 ```bash
 python3 tests/validate_skills.py
+python3 tests/test_long_horizon_state.py
 python3 tests/test_model_ranking.py
 bash tests/test_chrome_launcher.sh
 bash tests/test_impact_map.sh
 node tests/test_evaluate_skills.mjs
+node tests/test_collaboration_grading.mjs
 ```
 
 The checks are offline and do not modify installed agent configuration.
@@ -99,6 +102,12 @@ node scripts/benchmark-skills.ts --participant /tmp/brainstorm-ideas --participa
 node scripts/evaluate-skills.ts --skill authoring-skills --eval migration-discovery
 node scripts/benchmark-skills.ts --participant /tmp/brainstorm-ideas --participant /tmp/other-brainstorm --evals /path/to/shared-evals.json --eval migration-discovery --eval boundary-case
 ```
+
+For `long-horizon`, allow time for real executor/auditor rounds:
+`node scripts/evaluate-skills.ts --skill long-horizon --timeout-ms 1200000`.
+Review persisted child identities as well as scores; the runner enables native
+subagents for this skill, while the default baseline does not enable them. This
+comparison therefore measures the configured workflow, not the instructions alone.
 
 On a managed Codex host that rejects candidate shell commands before they can
 read staged skills or fixtures, add `--approve-for-me` to `evaluate-skills.ts`.

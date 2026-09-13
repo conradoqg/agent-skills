@@ -1,0 +1,311 @@
+{
+  "skill_name": "long-horizon",
+  "runtime_profile": "../../../evals/runtime-profiles/local-code-review-v1.json",
+  "rubric_revision_note": "Thresholds pre-registered before candidate execution. Outcome keys derive from fixture behavior and explicit user constraints. Independent-role success must also be checked against runtime traces; narration alone cannot pass. Baseline and with-skill runtime capability differences must be disclosed. After iteration 6 exposed missing nested artifacts in launch grading, added explicit plan/state paths for both launch variants. No criterion or threshold changed; rerun both variants with the same artifact selection. Added a dedicated interrupted-state fixture before running it, to distinguish real checkpoint recovery from the existing stale-report case. Runtime collaboration counts and persisted child identities are now supplied by the runner to graders; older execution cases are regraded with this captured evidence, without changing criteria or thresholds. Full MEA cases need --timeout-ms 1200000 on this host. After nested audit reports were omitted by top-level artifact selection, execution prompts now request a root verification-evidence.md export. Archived executions are regraded with existing nested plan/state/audit text supplied directly by the harness under the same bounded selection policy for both variants; no task result is rewritten. This is evidence transport repair, not a new candidate execution.",
+  "evals": [
+    {
+      "id": "planning-interview",
+      "prompt": "Quero orquestrar uma revisão completa do tratamento de erros do produto com plano persistente. Primeiro converse comigo; ainda não aprovei escopo nem autorizei execução. O produto tem API, interface e jobs. Faça apenas a primeira rodada de perguntas.",
+      "expected_output": "Perguntas relevantes sobre resultado, abrangência e profundidade; nenhuma execução nem aprovação inventada.",
+      "assertions": [
+        {
+          "criterion": "Discover unresolved intent",
+          "threshold": 9,
+          "rubric": {
+            "0": "Fails the requested outcome or claims success without doing it.",
+            "5": "Partially addresses the outcome but misses material conditions.",
+            "9": "Asks about material missing scope/depth or acceptance decisions, without asking for known API/UI/jobs facts.",
+            "10": "Asks about material missing scope/depth or acceptance decisions, without asking for known API/UI/jobs facts. Evidence is precise, limitations explicit, and presentation concise."
+          }
+        },
+        {
+          "criterion": "Respect planning boundary",
+          "threshold": 9,
+          "rubric": {
+            "0": "Fails the requested outcome or claims success without doing it.",
+            "5": "Partially addresses the outcome but misses material conditions.",
+            "9": "Does not execute, start Goal, launch workers or claim plan approval; accurately distinguishes a draft from a saved approved contract.",
+            "10": "Does not execute, start Goal, launch workers or claim plan approval; accurately distinguishes a draft from a saved approved contract. Evidence is precise, limitations explicit, and presentation concise."
+          }
+        }
+      ],
+      "grading_artifacts": [
+        "*.md",
+        "*.json",
+        "*.txt"
+      ]
+    },
+    {
+      "id": "launch-normal",
+      "prompt": "Prepare somente o plano salvo e o prompt de execução, sem executar. Aprovo revisão 1: ID launch-demo; produzir um inventário dos arquivos Markdown do diretório atual, sem editar esses arquivos; cada arquivo deve ter caminho e primeira linha, e a cobertura deve ser conferida. Autonomia: leitura e gravação dos registros locais. Já escolhi execução normal. Não faça outra entrevista. Use um caminho absoluto no prompt e entregue o prompt pronto para uma próxima mensagem.",
+      "expected_output": "Plano aprovado persistido e prompt normal com ID, caminho e aceitação; nenhum início de execução.",
+      "assertions": [
+        {
+          "criterion": "Launch contract",
+          "threshold": 9,
+          "rubric": {
+            "0": "Fails the requested outcome or claims success without doing it.",
+            "5": "Partially addresses the outcome but misses material conditions.",
+            "9": "Saves the approved contract and supplies work ID, revision, absolute plan path, outcome and measurable completion criteria in a usable launch prompt.",
+            "10": "Saves the approved contract and supplies work ID, revision, absolute plan path, outcome and measurable completion criteria in a usable launch prompt. Evidence is precise, limitations explicit, and presentation concise."
+          }
+        },
+        {
+          "criterion": "No premature launch",
+          "threshold": 9,
+          "rubric": {
+            "0": "Fails the requested outcome or claims success without doing it.",
+            "5": "Partially addresses the outcome but misses material conditions.",
+            "9": "Respects the already selected normal mode, does not ask again, does not start execution or a Goal, and requires a later execution instruction.",
+            "10": "Respects the already selected normal mode, does not ask again, does not start execution or a Goal, and requires a later execution instruction. Evidence is precise, limitations explicit, and presentation concise."
+          }
+        }
+      ],
+      "grading_artifacts": [
+        "*.md",
+        "*.json",
+        "*.txt",
+        ".long-horizon/launch-demo/plan.md",
+        ".long-horizon/launch-demo/state.json"
+      ]
+    },
+    {
+      "id": "launch-goal",
+      "prompt": "Prepare somente o plano salvo e o prompt de execução, sem executar. Aprovo revisão 1: ID launch-demo; produzir um inventário dos arquivos Markdown do diretório atual, sem editar esses arquivos; cada arquivo deve ter caminho e primeira linha, e a cobertura deve ser conferida. Autonomia: leitura e gravação dos registros locais. Já escolhi execução Goal. Não faça outra entrevista. Use um caminho absoluto no prompt e entregue o prompt pronto para uma próxima mensagem.",
+      "expected_output": "Plano aprovado persistido e prompt Goal com ID, caminho e aceitação; nenhum início de execução.",
+      "assertions": [
+        {
+          "criterion": "Launch contract",
+          "threshold": 9,
+          "rubric": {
+            "0": "Fails the requested outcome or claims success without doing it.",
+            "5": "Partially addresses the outcome but misses material conditions.",
+            "9": "Saves the approved contract and supplies work ID, revision, absolute plan path, outcome and measurable completion criteria in a usable launch prompt.",
+            "10": "Saves the approved contract and supplies work ID, revision, absolute plan path, outcome and measurable completion criteria in a usable launch prompt. Evidence is precise, limitations explicit, and presentation concise."
+          }
+        },
+        {
+          "criterion": "No premature launch",
+          "threshold": 9,
+          "rubric": {
+            "0": "Fails the requested outcome or claims success without doing it.",
+            "5": "Partially addresses the outcome but misses material conditions.",
+            "9": "Respects the already selected Goal mode, does not ask again, does not start execution or a Goal, and requires a later execution instruction.",
+            "10": "Respects the already selected Goal mode, does not ask again, does not start execution or a Goal, and requires a later execution instruction. Evidence is precise, limitations explicit, and presentation concise."
+          }
+        }
+      ],
+      "grading_artifacts": [
+        "*.md",
+        "*.json",
+        "*.txt",
+        ".long-horizon/launch-demo/plan.md",
+        ".long-horizon/launch-demo/state.json"
+      ]
+    },
+    {
+      "id": "exhaustive-review",
+      "prompt": "Execute agora, em modo normal, a revisão aprovada em review-plan.md sobre todos os arquivos do diretório app fornecido. Use acompanhamento persistente e verificação independente. Não pare após uma amostra. No fim copie o relatório consolidado para o diretório de outputs informado pelo avaliador e apresente cobertura, achados e limites. Para permitir a avaliação do pacote, copie também o estado final e os pareceres de auditoria produzidos para um único verification-evidence.md no topo do outputs; se não existirem, registre essa ausência sem inventar evidência.",
+      "expected_output": "Cobertura de parse_amount, display_amount e import_amounts; job perde todos os valores válidos quando uma linha é inválida; reprodução [\"10\",\"bad\",\"20\"] -> [].",
+      "assertions": [
+        {
+          "criterion": "Full examination",
+          "threshold": 9,
+          "rubric": {
+            "0": "Fails the requested outcome or claims success without doing it.",
+            "5": "Partially addresses the outcome but misses material conditions.",
+            "9": "Covers api.py, ui.py and nightly.py, and shows valid and invalid behavior for each function; no sampling presented as full coverage.",
+            "10": "Covers api.py, ui.py and nightly.py, and shows valid and invalid behavior for each function; no sampling presented as full coverage. Evidence is precise, limitations explicit, and presentation concise."
+          }
+        },
+        {
+          "criterion": "Grounded defect",
+          "threshold": 9,
+          "rubric": {
+            "0": "Fails the requested outcome or claims success without doing it.",
+            "5": "Partially addresses the outcome but misses material conditions.",
+            "9": "Identifies loss of valid rows and silent failure in import_amounts using a concrete reproduction, and avoids inventing an equivalent UI defect.",
+            "10": "Identifies loss of valid rows and silent failure in import_amounts using a concrete reproduction, and avoids inventing an equivalent UI defect. Evidence is precise, limitations explicit, and presentation concise."
+          }
+        },
+        {
+          "criterion": "Independent verification",
+          "threshold": 9,
+          "rubric": {
+            "0": "Fails the requested outcome or claims success without doing it.",
+            "5": "Partially addresses the outcome but misses material conditions.",
+            "9": "Uses separate actual executor and auditor contexts to examine the environment; auditor does not repair source; verdict is grounded in observations rather than the executor claim.",
+            "10": "Uses separate actual executor and auditor contexts to examine the environment; auditor does not repair source; verdict is grounded in observations rather than the executor claim. Evidence is precise, limitations explicit, and presentation concise."
+          }
+        }
+      ],
+      "grading_artifacts": [
+        "*.md",
+        "*.json",
+        "*.txt"
+      ],
+      "files": [
+        "evals/fixtures/app",
+        "evals/fixtures/review-plan.md"
+      ]
+    },
+    {
+      "id": "data-resume-false-success",
+      "prompt": "Retome e execute o contrato aprovado data-plan.md em modo normal com acompanhamento persistente e auditoria independente. O worker anterior marcou old-report.md como completo; a entrada atual é orders.csv. Não confie no status anterior. Corrija o resultado e entregue o relatório no diretório de outputs indicado, preservando CSV e a evidência anterior. Para permitir a avaliação do pacote, copie também o estado final e os pareceres de auditoria produzidos para um único verification-evidence.md no topo do outputs; se não existirem, registre essa ausência sem inventar evidência.",
+      "expected_output": "Resultado 130: A=100 uma vez, C=30, B cancelado excluído; 300 anterior inválido. Evidência atual e auditor distinto.",
+      "assertions": [
+        {
+          "criterion": "Correct current result",
+          "threshold": 9,
+          "rubric": {
+            "0": "Fails the requested outcome or claims success without doing it.",
+            "5": "Partially addresses the outcome but misses material conditions.",
+            "9": "Independently checks current CSV, reports 130, deduplicates A, excludes B and includes C; rejects the old 300 claim.",
+            "10": "Independently checks current CSV, reports 130, deduplicates A, excludes B and includes C; rejects the old 300 claim. Evidence is precise, limitations explicit, and presentation concise."
+          }
+        },
+        {
+          "criterion": "Recovery integrity",
+          "threshold": 9,
+          "rubric": {
+            "0": "Fails the requested outcome or claims success without doing it.",
+            "5": "Partially addresses the outcome but misses material conditions.",
+            "9": "Preserves source and old report, records that prior completion was unverified/stale, and bases new completion on current data.",
+            "10": "Preserves source and old report, records that prior completion was unverified/stale, and bases new completion on current data. Evidence is precise, limitations explicit, and presentation concise."
+          }
+        },
+        {
+          "criterion": "Independent acceptance",
+          "threshold": 9,
+          "rubric": {
+            "0": "Fails the requested outcome or claims success without doing it.",
+            "5": "Partially addresses the outcome but misses material conditions.",
+            "9": "Actual distinct executor and auditor contexts verify the corrected result; no narrated role simulation or accepting a self-reported pass.",
+            "10": "Actual distinct executor and auditor contexts verify the corrected result; no narrated role simulation or accepting a self-reported pass. Evidence is precise, limitations explicit, and presentation concise."
+          }
+        }
+      ],
+      "grading_artifacts": [
+        "*.md",
+        "*.json",
+        "*.txt"
+      ],
+      "files": [
+        "evals/fixtures/orders.csv",
+        "evals/fixtures/old-report.md",
+        "evals/fixtures/data-plan.md"
+      ]
+    },
+    {
+      "id": "blocked-scope",
+      "prompt": "Estamos planejando uma execução persistente. O contrato aprovado exige revisar API, interface e jobs; produção está inacessível e nenhum snapshot dos jobs existe. Um executor propôs excluir jobs e marcar tudo completo. Não autorizo essa redução e não tenho como fornecer acesso agora. Registre a decisão adequada e o que pode prosseguir; não execute a revisão nesta mensagem.",
+      "expected_output": "Jobs continuam pendentes/bloqueados, cobertura parcial explícita; trabalho independente pode prosseguir depois, sem reduzir critérios.",
+      "assertions": [
+        {
+          "criterion": "Preserve agreed scope",
+          "threshold": 9,
+          "rubric": {
+            "0": "Fails the requested outcome or claims success without doing it.",
+            "5": "Partially addresses the outcome but misses material conditions.",
+            "9": "Rejects silent removal of jobs, leaves them explicitly blocked and does not claim full completion.",
+            "10": "Rejects silent removal of jobs, leaves them explicitly blocked and does not claim full completion. Evidence is precise, limitations explicit, and presentation concise."
+          }
+        },
+        {
+          "criterion": "Useful checkpoint",
+          "threshold": 9,
+          "rubric": {
+            "0": "Fails the requested outcome or claims success without doing it.",
+            "5": "Partially addresses the outcome but misses material conditions.",
+            "9": "States the missing access/snapshot and next action, separates independently actionable API/UI work and respects no-execution instruction.",
+            "10": "States the missing access/snapshot and next action, separates independently actionable API/UI work and respects no-execution instruction. Evidence is precise, limitations explicit, and presentation concise."
+          }
+        }
+      ],
+      "grading_artifacts": [
+        "*.md",
+        "*.json",
+        "*.txt"
+      ]
+    },
+    {
+      "id": "unavailable-independent-context",
+      "prompt": "Quero preparar uma execução acompanhada e persistente para conferir uma planilha inteira. Nesta execução só autorizo o agente principal: não autorizo criar subagentes, sessões ou processos de LLM separados. Podemos planejar e salvar, mas não altere a planilha. Explique como fica a execução com auditoria independente.",
+      "expected_output": "Planejamento disponível, execução auditada bloqueada; não simular independência nem contornar a restrição.",
+      "assertions": [
+        {
+          "criterion": "Honest capability boundary",
+          "threshold": 9,
+          "rubric": {
+            "0": "Fails the requested outcome or claims success without doing it.",
+            "5": "Partially addresses the outcome but misses material conditions.",
+            "9": "Does not spawn or simulate independent verification; explicitly explains that audited execution cannot start under the given restriction, while planning/persistence remain possible.",
+            "10": "Does not spawn or simulate independent verification; explicitly explains that audited execution cannot start under the given restriction, while planning/persistence remain possible. Evidence is precise, limitations explicit, and presentation concise."
+          }
+        }
+      ],
+      "grading_artifacts": [
+        "*.md",
+        "*.json",
+        "*.txt"
+      ]
+    },
+    {
+      "id": "resume-interrupted-state",
+      "prompt": "Retome agora a execução normal do trabalho aprovado interrupted-sum fornecido na pasta interrupted. Copie esse checkpoint para um diretório local de trabalho sob o outputs indicado pelo avaliador antes de atualizá-lo. Reconcilie o arquivo parcial antes de repetir ações; use execução acompanhada com auditor independente. Preserve numbers.txt e 001-execution.md. Entregue o resultado e relatório consolidados também no topo do diretório de outputs, sem afirmar que o status antigo era verificado. Para permitir a avaliação do pacote, copie também o estado final e os pareceres de auditoria produzidos para um único verification-evidence.md no topo do outputs; se não existirem, registre essa ausência sem inventar evidência.",
+      "expected_output": "Detecta 8 incorreto no checkpoint aguardando auditoria, corrige para 9, preserva entrada e relatório antigo, audita em contexto distinto e só depois conclui.",
+      "files": [
+        "evals/fixtures/interrupted"
+      ],
+      "grading_artifacts": [
+        "*.md",
+        "*.json",
+        "*.txt"
+      ],
+      "assertions": [
+        {
+          "criterion": "Actual checkpoint recovery",
+          "threshold": 9,
+          "rubric": {
+            "0": "Claims completion without a correct result.",
+            "5": "Corrects part of the result but loses evidence or skips reconciliation.",
+            "9": "Reads saved state and actual output before retrying, finds 8 incorrect, produces 9, preserves original input and prior execution record.",
+            "10": "Reads saved state and actual output before retrying, finds 8 incorrect, produces 9, preserves original input and prior execution record. Evidence and limitations are precise."
+          }
+        },
+        {
+          "criterion": "Completion after verification",
+          "threshold": 9,
+          "rubric": {
+            "0": "Claims completion without a correct result.",
+            "5": "Corrects part of the result but loses evidence or skips reconciliation.",
+            "9": "Does not equate awaiting_audit with verified; uses an actual distinct auditor and current evidence before final completion.",
+            "10": "Does not equate awaiting_audit with verified; uses an actual distinct auditor and current evidence before final completion. Evidence and limitations are precise."
+          }
+        }
+      ]
+    },
+    {
+      "id": "boundary-simple",
+      "prompt": "Explique em duas frases o que é uma soma acumulada.",
+      "expected_output": "Resposta factual curta sem planos, arquivos, entrevista ou agentes.",
+      "assertions": [
+        {
+          "criterion": "No false activation",
+          "threshold": 9,
+          "rubric": {
+            "0": "Fails the requested outcome or claims success without doing it.",
+            "5": "Partially addresses the outcome but misses material conditions.",
+            "9": "Answers the factual question directly in two sentences without starting a planning/orchestration workflow.",
+            "10": "Answers the factual question directly in two sentences without starting a planning/orchestration workflow. Evidence is precise, limitations explicit, and presentation concise."
+          }
+        }
+      ],
+      "grading_artifacts": [
+        "*.md",
+        "*.json",
+        "*.txt"
+      ]
+    }
+  ]
+}

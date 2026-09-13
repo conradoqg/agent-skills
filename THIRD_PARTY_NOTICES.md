@@ -48,3 +48,12 @@ under the MIT License. The local variants tighten boundaries, make outputs more
 compact and explicit, and add stronger no-fix/no-scope-creep behavior.
 
 The upstream license is included in each adapted skill directory.
+
+## Long Horizon
+
+The `long-horizon` skill is original instructional code and text inspired by the
+Manage–Execute–Audit method described by Ma et al. in
+[LongHorizon-Harness (2026)](https://arxiv.org/abs/2608.01964).
+It does not vendor the paper or upstream implementation. Conversational planning,
+coverage contracts and local validation are extensions; the skill does not claim
+the upstream runtime isolation or benchmark results.
