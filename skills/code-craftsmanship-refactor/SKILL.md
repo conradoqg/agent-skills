@@ -29,7 +29,11 @@ afterthought.
 - `verification`: infer existing project commands and add user-supplied checks.
 - `scope`: use, in order, an explicit path/module, the current diff, or the
   smallest relevant module. If there is neither an explicit scope nor a diff,
-  ask for one concise scope choice. Never infer repository-wide scope.
+  inspect the repository first. If that yields two or three plausible modules,
+  ask for one concise structured scope choice when the host supports it; put
+  the smallest relevant module first and retain a free-form route. If there are
+  no concrete candidates, ask an open scope question. Never infer
+  repository-wide scope.
 
 Repository-wide work requires an explicit request. Divide it by module and
 finish one independently verifiable batch before starting the next.

@@ -3,6 +3,12 @@
   "runtime_profile": "../../../evals/runtime-profiles/local-code-review-v1.json",
   "evals": [
     {
+      "id": "interactive-framing-confirmation",
+      "prompt": "Use o What-If Oracle: e se a IA dominar o mercado?",
+      "expected_output": "Refina a pergunta e pede confirmação com as alternativas prosseguir com o enquadramento ou refiná-lo, deixando o usuário livre para informar detalhes.",
+      "assertions": [{"criterion":"Confirmação sem falsa precisão","threshold":9,"rubric":{"0":"Inventa magnitude, prazo ou contexto e inicia cenários.","5":"Pede confirmação vaga sem uma decisão clara.","9":"Propõe enquadramento e oferece prosseguir ou refinar, com espaço para informação livre.","10":"Também identifica qual variável, magnitude, prazo ou contexto ainda falta."}}]
+    },
+    {
       "id": "deep-supplier-price-shock",
       "prompt": "Use o What-If Oracle para analisar: e se nosso fornecedor principal elevar os preços em 30% no próximo trimestre? Hoje ele fornece 70% dos componentes e nossa margem bruta é de 24%.",
       "expected_output": "Uma análise Deep Oracle com cenários diferenciados, premissas, sinais observáveis, consequências e ações robustas; probabilidades devem ser tratadas como estimativas.",

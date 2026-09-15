@@ -3,6 +3,12 @@
   "runtime_profile": "../../../evals/runtime-profiles/local-code-review-v1.json",
   "evals": [
     {
+      "id": "product-state-choice",
+      "prompt": "Quero gerar ideias para melhorar a experiência de compra, mas não disse se é um produto novo ou existente.",
+      "expected_output": "Pede essa distinção como escolha entre produto novo e existente, explicando o método que muda, mas mantém resultado e restrições como perguntas abertas.",
+      "assertions": [{"criterion":"Estrutura apenas para decisão fechada","threshold":9,"rubric":{"0":"Assume produto novo/existente ou cria um menu para todas as informações.","5":"Pergunta tudo de modo aberto.","9":"Estrutura novo versus existente e deixa resultado/restrições em aberto.","10":"Também explica brevemente a mudança entre lentes de produto novo e Opportunity Solution Tree."}}]
+    },
+    {
       "id": "billing-migration-opportunity-tree",
       "prompt": "A diretoria quer automatizar a migração de clientes enterprise para uma nova cobrança. Há pressão de receita, mas preciso de um brainstorm estruturado antes da decisão.",
       "expected_output": "Oportunidades e direções de produto que tratem receita, integridade financeira, contrato e rollout sem assumir automação total.",

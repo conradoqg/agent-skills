@@ -22,10 +22,17 @@ shared understanding is confirmed. This skill does not enact the result.
 ## Select the mode
 
 Before asking substantive questions, require an explicit mode selection. Accept
-`sequential` or `batch` in the request; otherwise ask:
+`sequential` or `batch` in the request; otherwise ask using the host's
+structured-question UI when it is available:
 
-> Which grilling mode should I use: **sequential** (one decision per turn) or
-> **batch** (all independent decisions per round)?
+1. **Sequential (Recommended)** — one decision per turn; use when dependencies
+   are unclear or consequential.
+2. **Batch** — all independent decisions in each round; use when the user wants
+   speed and the frontier is already clear.
+
+If the host has no structured-question UI, present those same two choices in
+plain text and accept a free-form answer. Do not name a host-specific tool in
+the user-facing prompt.
 
 State the chosen mode before beginning. Do not silently substitute one mode for
 the other.
@@ -41,16 +48,26 @@ the other.
 4. Never assume an unresolved decision. Do not act on the outcome until the
    user explicitly confirms shared understanding.
 
+## Decision format
+
+Use an interactive choice when the current decision has two or three concrete,
+mutually exclusive answers. Put the recommendation first and state its
+trade-off. Preserve a free-form route when the host provides one.
+
+Use an open question when the user must supply facts, constraints, thresholds,
+or an option the environment cannot discover. Do not force a made-up menu for
+that information. When structured questions are unavailable or cannot represent
+all valid choices, use concise plain text with the recommendation and choices.
+
 ## Sequential mode
 
 Use this mode for a focused, conversational interview.
 
 1. Ask the next unresolved decision whose prerequisites are settled.
-2. Ask exactly one question, including its recommendation, then wait for the
-   answer. Do not combine questions. The entire turn must contain exactly one
-   question mark; put the recommendation before that question and end the turn
-   immediately after it. Declaring the chosen mode is not a question: do not
-   append a confirmation such as "does that work?" or "what is your decision?".
+2. Ask exactly one decision, including its recommendation, then wait for the
+   answer. Use one interactive choice when it fits the Decision format;
+   otherwise use one open question. Do not combine decisions or append a second
+   confirmation.
 3. Incorporate the answer, identify the next unlocked decision, and repeat.
 
 ## Batch mode
@@ -61,7 +78,8 @@ questions whose answers depend on each other.
 1. Identify the **frontier**: every unresolved decision whose prerequisites are
    already settled.
 2. Ask the full frontier in one numbered round, with a recommendation for each
-   question. Wait for all answers before starting another round.
+   decision. Use structured choices only for independent decisions that fit the
+   Decision format. Wait for all answers before starting another round.
 3. Recompute the frontier after the answers. A decision that depends on another
    open question from the current round belongs to a later round.
 4. If a frontier question requires a fact from the environment, investigate it

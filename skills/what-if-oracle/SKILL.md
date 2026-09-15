@@ -60,6 +60,11 @@ Take the user's What-If question and sharpen it:
 - "What if we fail?" → "What if monthly revenue stays below $5K for 6 consecutive months starting now?"
 
 Present the sharpened question to the user for confirmation before proceeding.
+When the host supports structured questions, offer two choices: **Proceed with
+this framing (Recommended)** and **Refine it**. Retain a free-form route so the
+user can supply the variable, magnitude, timeframe, or context that needs to
+change. Use a concise open confirmation only when structured input is not
+available.
 
 ### Phase 2 — Map the Possibility Space
 

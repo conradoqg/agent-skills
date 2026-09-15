@@ -43,6 +43,13 @@ is unknown, state it as an assumption and prefer an option that learns or limits
 exposure to it. If the user says "just draft it," proceed and list assumptions
 and preconditions at the top of the artifact.
 
+When **new vs existing product** is unknown, treat it as a structured decision:
+offer **New product** and **Existing product** (with the applicable approach as
+the trade-off) if the host supports interactive questions, while retaining a
+free-form route. Keep target outcome, hard constraints, and decision-critical
+conditions as open questions: those require user-specific facts rather than a
+generic menu.
+
 ## Decision-Critical Coverage
 
 Before moving from framing to Product Trio ideation, distinguish:

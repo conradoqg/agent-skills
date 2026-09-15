@@ -3,6 +3,12 @@
   "runtime_profile": "../../../evals/runtime-profiles/local-code-review-v1.json",
   "evals": [
     {
+      "id": "interactive-mode-selection",
+      "prompt": "Faça um stress test deste plano de lançamento, mas não especifique o modo.",
+      "expected_output": "Pede a escolha entre sequencial e batch como duas alternativas claras, recomenda sequencial e não inicia uma investigação antes dessa escolha.",
+      "assertions": [{"criterion":"Seleção estruturada e portátil","threshold":9,"rubric":{"0":"Escolhe o modo silenciosamente ou inicia perguntas substantivas.","5":"Pede modo sem tornar as alternativas claras.","9":"Oferece sequencial e batch com recomendação, com fallback de resposta livre quando necessário.","10":"Também explica em uma frase o trade-off entre os modos sem citar uma ferramenta específica."}}]
+    },
+    {
       "id": "sequential-enterprise-migration",
       "prompt": "Faça um stress test sequencial deste plano: migrar todos os clientes enterprise para o novo sistema de cobrança na sexta-feira. A recomendação de produto é migrar por elegibilidade; o problema é que não sabemos se créditos manuais e cláusulas contratuais foram mapeados.",
       "expected_output": "Uma primeira pergunta única, com recomendação, que resolva a decisão mais importante antes de avançar com a migração.",

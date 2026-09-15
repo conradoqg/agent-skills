@@ -2,6 +2,12 @@
   "skill_name": "code-craftsmanship-refactor",
   "evals": [
     {
+      "id": "ambiguous-scope-choice",
+      "prompt": "Faça uma passagem de craftsmanship neste repositório, mas não indique um arquivo ou módulo. Há dois módulos independentes plausíveis após a inspeção.",
+      "expected_output": "Inspeciona antes de perguntar e oferece os dois módulos como escopo estruturado, com o menor relevante recomendado e rota para informar outro caminho.",
+      "assertions": [{"criterion":"Escopo baseado em evidência","threshold":9,"rubric":{"0":"Assume escopo do repositório inteiro.","5":"Pede escopo antes de inspecionar ou sem candidatos concretos.","9":"Inspeciona e oferece uma escolha concisa entre candidatos plausíveis.","10":"Também preserva resposta livre e evita inferir trabalho repo-wide."}}]
+    },
+    {
       "id": "typescript-comments-and-names-review",
       "prompt": "In review-only mode, audit the provided TypeScript file for professional naming, comments, and maintainability. Give concrete proposed changes, what you would deliberately preserve, risk, and verification evidence. Do not edit files.",
       "expected_output": "A restrained audit that improves generic internal names and removes narrative comments while preserving the compatibility explanation and observable formatting behavior.",

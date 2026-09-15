@@ -15,8 +15,11 @@ which browser profile to use.
 
 ## Decide the profile mode first
 
-Ask the user (or infer from the task) which profile to launch. This is the key
-choice, because it changes what the browser can see:
+Infer the profile from the task when it is unambiguous. Otherwise ask the user
+which profile to launch. When the host supports structured questions, offer
+`temp` first as the recommended choice and `active` second, with the trade-offs
+below; preserve a free-form route. Otherwise present the same choices in plain
+text. This is the key choice, because it changes what the browser can see:
 
 | Mode     | Use when                                             | Profile / user-data-dir                                            | Trade-offs |
 |----------|------------------------------------------------------|--------------------------------------------------------------------|-----------|

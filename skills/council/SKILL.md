@@ -73,7 +73,12 @@ Then resolve members WITHIN the active profile, in order:
      deduplicated. The options are: (a) all/todos — combined panel (union of
      every matched triad, deduplicated); this option MUST always be offered
      whenever more than one option exists; (b) a single named triad; or (c) an
-     explicit member list. Wait for the answer.
+     explicit member list. When there are at most three valid choices and the
+     host supports structured questions, present them as an interactive choice:
+     put `all / todos` first, explain the trade-off of each option, and retain a
+     free-form route. If the choices exceed the host limit or structured input is
+     unavailable, present the complete list in plain text instead. Wait for the
+     answer.
 4. the active profile's `default_triad` (fallback when no keyword matches)
 
 ### 2. Round 1: Independent Analysis

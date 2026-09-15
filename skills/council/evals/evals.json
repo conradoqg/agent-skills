@@ -3,6 +3,12 @@
   "runtime_profile": "../../../evals/runtime-profiles/local-code-review-v1.json",
   "evals": [
     {
+      "id": "ambiguous-panel-choice",
+      "prompt": "Rode um council sobre lançar um produto regulado e use um perfil onde segurança e compliance apontem para triads diferentes.",
+      "expected_output": "Antes da deliberação, apresenta todos/todos como primeira alternativa e opções de painel suficientemente distintas; usa escolha interativa quando couber e lista textual completa quando não couber.",
+      "assertions": [{"criterion":"Escolha de painel sem omissão","threshold":9,"rubric":{"0":"Escolhe uma triad silenciosamente.","5":"Lista triads mas omite todos/todos ou opções materiais.","9":"Oferece todos/todos primeiro e preserva todas as opções materiais.","10":"Também adapta para interface estruturada somente quando o limite de opções permite."}}]
+    },
+    {
       "id": "identity-consolidation-council",
       "prompt": "Rode um council sobre consolidar automaticamente contas de produtos adquiridos pelo mesmo e-mail. Isso reduziria fricção de login, mas alguns clientes usam aliases e a pessoa pode ter permissões financeiras em apenas um produto.",
       "expected_output": "Uma deliberação multi-perspectiva que separe autenticação, vínculo de identidade e autorização, exponha divergências e entregue um veredito acionável.",
