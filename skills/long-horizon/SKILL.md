@@ -21,7 +21,8 @@ verified progress. This skill requests real delegation for execution and auditin
    execution. Deliver that prompt and stop. Choosing a mode is not launching it.
 2. **Execute/resume:** require an execution instruction and an identified approved
    plan. Read [execution](references/execution.md), [state](references/state.md),
-   and, on Codex, [Codex delegation](references/codex-subagents.md).
+   and, on Codex, [Codex delegation](references/codex-subagents.md). The execution
+   guide defines when to stop a blocked line of work and how to checkpoint it.
    Use fresh executor and auditor contexts sequentially, one unit per round.
 3. **Status:** read the selected work's records and report verified progress,
    unresolved work, blockers and next step. A status request alone does not launch
@@ -52,6 +53,10 @@ instructional rather than enforced by the runtime, disclose that limitation.
 - Freeze requirements, exclusions and acceptance in the approved plan revision.
   Reordering/splitting work is allowed; reducing scope or weakening acceptance needs
   user authorization unless already explicitly granted.
+- Before recording a material plan revision, tell the user which criteria and
+  verification units change and which existing checks remain applicable. Preserve
+  unaffected verification only when its acceptance text and evidence are still
+  current; invalidate changed checks and their dependent conclusions.
 - For exhaustive work, discover and audit the inventory before claiming coverage.
   Record discovery method, exclusions and unresolved boundaries. Sampling cannot
   substitute for full coverage. Define what substantive examination means per unit.
@@ -64,8 +69,28 @@ instructional rather than enforced by the runtime, disclose that limitation.
 - Checkpoint on interruption, an explicitly set limit, or inability to advance.
   Never treat spent time/tokens, repetition or a full checklist as proof of success.
 
-After each round report verified units/total, gaps, blockers and next step. Derive
-`report.md` from the current state; do not maintain a second competing checklist.
+Every user-facing update after a round, interruption, blocker or resume must stand
+on its own. Assume the user may have missed the execution and cannot see internal
+reasoning. Anchor the message to the approved outcome; state the current phase and
+status; explain what happened and what the evidence means; give verified required
+units out of the total; identify what remains and why; state what action or access is
+needed from the user, if any; and say what happens next. Read
+[the progress template](assets/progress-template.md) when composing these updates.
+Explain technical terms and IDs in ordinary language before relying on them. Never
+use “as above,” a bare status label, or a generic “did you understand?” in place of
+the context. Ask a direct question only when a user action or decision is needed;
+explain its consequence first. If independent work can continue without input, say
+so and continue it. Translate host-internal terms such as “Goal” and “checkpoint”
+into user-facing language such as “the tracked task” and “the saved point to resume
+from,” unless the user already uses those terms.
+
+If the user explicitly asks whether an explanation was clear, summarize the relevant
+result and define necessary terms before asking about clarity. Do not turn that
+request into a quiz about facts unless the user explicitly asks for a comprehension
+test.
+
+Derive `report.md` from the current state; do not maintain a second competing
+checklist.
 Run `python <skill-dir>/scripts/validate-state.py <work-dir>/state.json` before
 handoff, after state updates and before declaring completion. It checks records,
 not truth, evidence freshness, isolation or audit quality.

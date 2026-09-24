@@ -9,6 +9,8 @@ Included scope and discovery boundaries:
 Exclusions:
 Depth protocol:
 Constraints and autonomy:
+Completion condition and verification surface:
+Blocked-stop condition and exact user input/access needed to resume:
 
 | Requirement ID | Observable acceptance criterion | Required? |
 | --- | --- | --- |
@@ -20,7 +22,9 @@ Initial units, dependencies and their acceptance:
 Final integrated verification:
 
 ## Decisions and revisions
-Record decisions and authorized material changes without rewriting old approvals.
+Record decisions and authorized material changes without rewriting old approvals. For
+each revision, state the changed criteria, affected units/dependencies, and existing
+checks that remain valid with their evidence basis.
 
 ## Launch
 Selected mode: <normal or Goal>

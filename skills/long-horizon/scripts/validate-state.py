@@ -102,16 +102,29 @@ def validate(state, base):
             check(member(item.get('verdict'), {'pass', 'fail', 'blocked'}), f'{ident}: invalid verdict')
             refs(item, 'evidence', evidence, f'{ident}/{req}', item.get('verdict') == 'pass')
 
-    def passing(audit_id, needed, label):
+    def passing(audit_id, needed, label, allow_unchanged_revision=False):
         if not isinstance(audit_id, str) or audit_id not in audits:
             errors.append(f'{label}: verified state requires known audit')
             return
         audit = audits[audit_id]
         check(audit.get('integrity') == 'clean', f'{label}: audit is not clean')
-        check(audit.get('plan_revision') == revision, f'{label}: audit revision is stale')
-        passed = {item.get('requirement') for item in audit.get('checks', [])
-                  if isinstance(item, dict) and isinstance(item.get('requirement'), str)
-                  and item.get('verdict') == 'pass'} if isinstance(audit.get('checks'), list) else set()
+        audit_revision = audit.get('plan_revision')
+        current_revision = audit_revision == revision
+        compatible_prior_revision = (allow_unchanged_revision
+                                     and type(audit_revision) is int
+                                     and audit_revision < revision)
+        check(current_revision or compatible_prior_revision,
+              f'{label}: audit revision is stale')
+        passed = set()
+        for item in audit.get('checks', []) if isinstance(audit.get('checks'), list) else []:
+            if not isinstance(item, dict) or item.get('verdict') != 'pass':
+                continue
+            requirement = item.get('requirement')
+            if not isinstance(requirement, str):
+                continue
+            if not current_revision and item.get('criterion_text') != requirements.get(requirement, {}).get('criterion'):
+                continue
+            passed.add(requirement)
         check(set(needed).issubset(passed), f'{label}: audit does not pass every criterion')
 
     for ident, row in units.items():
@@ -125,7 +138,7 @@ def validate(state, base):
         if row.get('status') == 'blocked':
             check(text(row.get('blocker')), f'{ident}: blocked unit needs blocker')
         if row.get('status') == 'verified':
-            passing(row.get('audit'), needed, ident)
+            passing(row.get('audit'), needed, ident, allow_unchanged_revision=True)
         if member(row.get('status'), {'in_progress', 'awaiting_audit', 'verified'}):
             check(all(units.get(dep, {}).get('status') == 'verified' for dep in dependencies),
                   f'{ident}: dependencies are not verified')

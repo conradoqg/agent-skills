@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "id": "revision-impact",
+  "plan": "plan.md",
+  "plan_revision": 2,
+  "approved": true,
+  "status": "running",
+  "requirements": [
+    {"id": "R-A", "criterion": "Confirm the inventory contains the listed three records.", "required": true},
+    {"id": "R-B", "criterion": "Confirm each record's amount is correct under the revised calculation rule.", "required": true},
+    {"id": "R-C", "criterion": "Publish a summary derived from the verified amounts.", "required": true}
+  ],
+  "units": [
+    {"id": "U-A", "goal": "Verify the three-record inventory.", "requirements": ["R-A"], "depends_on": [], "status": "verified", "audit": "A-OLD"},
+    {"id": "U-B", "goal": "Verify amounts under the revised rule.", "requirements": ["R-B"], "depends_on": ["U-A"], "status": "pending", "audit": null},
+    {"id": "U-C", "goal": "Publish the verified summary.", "requirements": ["R-C"], "depends_on": ["U-B"], "status": "pending", "audit": null}
+  ],
+  "evidence": [
+    {"id": "E-A", "source": "inventory.txt", "observed_version": "sha256:8e1100d322cbb9e13576831dcdbb11268d7dc85b4ee61f75793872a2726e3ec5", "record": "inventory.txt"},
+    {"id": "E-B", "source": "amounts.txt", "observed_version": "sha256:a86aa9b73fb37eb518ae6ad193a52645937a9806128b129ed30112e9999352db", "record": "amounts.txt"},
+    {"id": "E-C", "source": "summary.txt", "observed_version": "sha256:836594427c993be51e5fcdfc481bfb5bea2f432bd47144c2be71baf43da57b0f", "record": "summary.txt"}
+  ],
+  "audits": [
+    {"id": "A-OLD", "report": "audits/a-old.md", "plan_revision": 1, "auditor": "auditor-old-a", "scope": "unit", "integrity": "clean", "checks": [{"requirement": "R-A", "verdict": "pass", "evidence": ["E-A"], "criterion_text": "Confirm the inventory contains the listed three records."}]},
+    {"id": "B-OLD", "report": "audits/b-old.md", "plan_revision": 1, "auditor": "auditor-old-b", "scope": "unit", "integrity": "clean", "checks": [{"requirement": "R-B", "verdict": "pass", "evidence": ["E-B"], "criterion_text": "Confirm each record's amount using the original calculation rule."}]},
+    {"id": "C-OLD", "report": "audits/c-old.md", "plan_revision": 1, "auditor": "auditor-old-c", "scope": "unit", "integrity": "clean", "checks": [{"requirement": "R-C", "verdict": "pass", "evidence": ["E-C"], "criterion_text": "Publish a summary derived from the verified amounts."}]}
+  ],
+  "facts": [],
+  "hypotheses": [],
+  "final_audit": null,
+  "next_step": "Re-examine R-B under revision 2; U-C remains dependent on U-B"
+}

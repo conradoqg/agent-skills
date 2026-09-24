@@ -5,7 +5,7 @@ Auditor identity and fresh-context mechanism:
 Read-only restriction: <enforced or instructional, with actual capability>
 Integrity: <clean / suspect / violation>
 
-| Criterion ID | pass / fail / blocked | Direct observation | Evidence and artifact version | Gap |
+| Criterion ID and exact approved criterion text | pass / fail / blocked | Direct observation | Evidence and artifact version | Gap |
 | --- | --- | --- | --- | --- |
 
 Inventory and depth assessment:

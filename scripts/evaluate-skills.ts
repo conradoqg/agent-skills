@@ -7,7 +7,7 @@
  * Generated evidence always stays outside the skill package.
  */
 
-import { appendFile, cp, mkdir, readFile, readdir, realpath, rm, stat, symlink, writeFile } from "node:fs/promises";
+import { appendFile, cp, link, mkdir, readFile, readdir, realpath, rm, stat, symlink, unlink, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { performance } from "node:perf_hooks";
@@ -793,8 +793,40 @@ async function prepareCodexHome(outputDir) {
   // Codex authentication is intentionally the only state carried into the clean home.
   const sourceHome = process.env.CODEX_HOME ?? join(homedir(), ".codex");
   const auth = join(sourceHome, "auth.json");
-  if (await fileExists(auth)) await symlink(auth, join(home, "auth.json")).catch(() => {});
+  if (await fileExists(auth)) {
+    const isolatedAuth = join(home, "auth.json");
+    if (await fileExists(isolatedAuth)) {
+      const [sourceInfo, isolatedInfo] = await Promise.all([stat(auth), stat(isolatedAuth)]);
+      if (sourceInfo.dev === isolatedInfo.dev && sourceInfo.ino === isolatedInfo.ino) return home;
+      throw new Error(`Refusing to replace existing Codex auth entry at ${isolatedAuth}; it does not identify the configured source auth file.`);
+    }
+    try {
+      await symlink(auth, isolatedAuth);
+    } catch (symlinkError) {
+      if (process.platform !== "win32") {
+        throw new Error(`Could not link Codex auth.json into the isolated home: ${symlinkError.message}`);
+      }
+      try {
+        // Windows may deny symlink creation to unelevated processes. A hard link keeps the
+        // original file ACL and avoids copying authentication material into eval artifacts.
+        await link(auth, isolatedAuth);
+      } catch (hardlinkError) {
+        throw new Error(`Could not link Codex auth.json into the isolated home (symlink: ${symlinkError.message}; hard link: ${hardlinkError.message}).`);
+      }
+    }
+  }
   return home;
+}
+
+async function removeCodexAuthLink(home) {
+  const sourceHome = process.env.CODEX_HOME ?? join(homedir(), ".codex");
+  const source = join(sourceHome, "auth.json");
+  const isolated = join(home, "auth.json");
+  if (!(await fileExists(source)) || !(await fileExists(isolated))) return;
+  const [sourceInfo, isolatedInfo] = await Promise.all([stat(source), stat(isolated)]);
+  if (sourceInfo.ino !== 0 && sourceInfo.dev === isolatedInfo.dev && sourceInfo.ino === isolatedInfo.ino) {
+    await unlink(isolated);
+  }
 }
 
 function codexMcpOverrides(config, mode) {
@@ -869,7 +901,7 @@ async function runCodex({ config, cwd, skillPath, inputs, outputDir, prompt, lab
   // Multi-agent exec needs the coordinator thread persisted while children are
   // attached. The isolated CODEX_HOME already confines that state to this run;
   // --ephemeral makes spawn_agent fail with "no thread with id".
-  const args = ["exec", "--json", ...(multiAgent ? [] : ["--ephemeral"]), "--ignore-user-config", "--disable", "mcp_2026_07_28", "--disable", "enable_mcp_apps"];
+  const args = ["exec", "--json", ...(multiAgent ? [] : ["--ephemeral"]), "--ignore-user-config", "--disable", "apps", "--disable", "mcp_2026_07_28", "--disable", "enable_mcp_apps"];
   for (const value of codexMcpOverrides(config, mcpMode)) args.push("-c", value);
   if (multiAgent) {
     args.push("--enable", "multi_agent");
@@ -894,7 +926,12 @@ async function runCodex({ config, cwd, skillPath, inputs, outputDir, prompt, lab
   await writeRuntimeEvent(outputDir, "subprocess_starting", { executable: config.codexBin, argument_count: args.length });
   const startedAt = new Date().toISOString();
   const started = performance.now();
-  const processResult = await spawnProcess(config.codexBin, args, { cwd, timeoutMs: config.timeoutMs, env: isolatedEnv });
+  let processResult;
+  try {
+    processResult = await spawnProcess(config.codexBin, args, { cwd, timeoutMs: config.timeoutMs, env: isolatedEnv });
+  } finally {
+    await removeCodexAuthLink(home);
+  }
   await writeRuntimeEvent(outputDir, "subprocess_finished", { code: processResult.code, signal: processResult.signal, timed_out: processResult.timedOut, pid: processResult.pid, spawn_error: processResult.spawn_error ?? null });
   const durationMs = Math.round(performance.now() - started);
   await writeFile(join(outputDir, "stdout.log"), processResult.stdout);
@@ -1123,7 +1160,7 @@ async function gradeWithCodex({ config, variantDir, test, run, sarifContext = nu
   await writeRuntimeEvent(variantDir, "grader_isolated_home_ready", { home: relative(variantDir, home) });
   await assertCodexMcpConfiguration(config, variantDir, env, "disabled");
   await writeRuntimeEvent(variantDir, "grader_mcp_preflight_passed");
-  const graderArgs = ["exec", "--json", "--ephemeral", "--ignore-user-config", "--disable", "mcp_2026_07_28", "--disable", "enable_mcp_apps", "--skip-git-repo-check", "--sandbox", config.runtimeProfile.grader.filesystem, "--color", "never", "-C", variantDir];
+  const graderArgs = ["exec", "--json", "--ephemeral", "--ignore-user-config", "--disable", "apps", "--disable", "mcp_2026_07_28", "--disable", "enable_mcp_apps", "--skip-git-repo-check", "--sandbox", config.runtimeProfile.grader.filesystem, "--color", "never", "-C", variantDir];
   if (config.model) graderArgs.push("--model", config.model);
   graderArgs.push("--output-schema", schemaPath, "--output-last-message", gradeFile, "-");
   await writeRuntimeEvent(variantDir, "grader_subprocess_starting", { executable: config.codexBin, argument_count: graderArgs.length });
@@ -1158,7 +1195,7 @@ async function gradeWithCodex({ config, variantDir, test, run, sarifContext = nu
         "Review only the expected and actual SARIF findings left unmatched by the first independent pass. Return additional one-to-one pairs only when both defect mechanism and consequence match; an empty list is valid. Do not reconsider or duplicate pairs absent from these reduced lists.",
         semanticSarifPrompt(retryContext)
       ].join("\n\n");
-      const retryArgs = ["exec", "--json", "--ephemeral", "--ignore-user-config", "--disable", "mcp_2026_07_28", "--disable", "enable_mcp_apps", "--skip-git-repo-check", "--sandbox", config.runtimeProfile.grader.filesystem, "--color", "never", "-C", variantDir];
+      const retryArgs = ["exec", "--json", "--ephemeral", "--ignore-user-config", "--disable", "apps", "--disable", "mcp_2026_07_28", "--disable", "enable_mcp_apps", "--skip-git-repo-check", "--sandbox", config.runtimeProfile.grader.filesystem, "--color", "never", "-C", variantDir];
       if (config.model) retryArgs.push("--model", config.model);
       retryArgs.push("--output-schema", retrySchemaPath, "--output-last-message", retryFile, retryPrompt);
       await writeRuntimeEvent(variantDir, "semantic_matching_retry_starting", { round: retryRound, executable: config.codexBin, argument_count: retryArgs.length });
@@ -1319,6 +1356,18 @@ export function collaborationRequirementGrade(test, run, multiAgentEnabled) {
   };
 }
 
+export function classifyExecutionFailure(run) {
+  const diagnostic = `${run.stderr ?? ""}\n${run.output ?? ""}`;
+  if (run.code !== 0 && !run.timedOut && !(run.output ?? "").trim() && /401\s+Unauthorized|Missing bearer or basic authentication/i.test(diagnostic)) {
+    return {
+      status: "not_evaluable",
+      reason: "Codex authentication was unavailable in the isolated evaluation home. The model did not produce an answer, so this run cannot score the skill.",
+      next_step: "Run `codex login status` in the same Windows account and terminal used for evaluation. Ensure the isolated home can access the configured credential store; do not copy credentials into evaluation artifacts."
+    };
+  }
+  return { status: "completed", reason: null, next_step: null };
+}
+
 function sumTokenUsage(timings) {
   const fields = ["input_tokens", "cached_input_tokens", "cache_write_input_tokens", "output_tokens", "reasoning_output_tokens", "total_tokens"];
   return Object.fromEntries(fields.map((field) => {
@@ -1355,18 +1404,24 @@ function summarizeSarif(runs) {
 
 function standardVariantResult(variant, runs) {
   const environment = runs[0]?.runtime_environment ?? null;
-  const score = summarizeScores(runs);
+  const evaluableRuns = runs.filter((run) => run.execution_status !== "not_evaluable");
+  const notEvaluableRuns = runs.filter((run) => run.execution_status === "not_evaluable");
+  const score = summarizeScores(evaluableRuns);
   const taskTokens = sumTokenUsage(runs.map((run) => run.timing)).total_tokens;
   const graderTokens = sumTokenUsage(runs.map((run) => run.grader_timing)).total_tokens;
   return {
     variant,
-    status: runs.length > 0 && runs.every((run) => run.passed) ? "passed" : "failed",
+    status: evaluableRuns.length === 0 && notEvaluableRuns.length > 0
+      ? "not_evaluable"
+      : (evaluableRuns.length > 0 && evaluableRuns.every((run) => run.passed) ? "passed" : "failed"),
     runtime: environment ? { name: runs[0].runtime, model: environment.model } : { name: runs[0]?.runtime ?? null, model: null },
     profile: environment?.profile ?? null,
     metrics: {
-      passed: runs.filter((run) => run.passed).length,
+      passed: evaluableRuns.filter((run) => run.passed).length,
+      evaluated: evaluableRuns.length,
+      not_evaluable: notEvaluableRuns.length,
       total: runs.length,
-      pass_rate: runs.length === 0 ? null : runs.filter((run) => run.passed).length / runs.length,
+      pass_rate: evaluableRuns.length === 0 ? null : evaluableRuns.filter((run) => run.passed).length / evaluableRuns.length,
       average_score: score.average_score,
       sarif: summarizeSarif(runs),
       tokens: { task: taskTokens, grader: graderTokens },
@@ -1438,6 +1493,18 @@ function transcriptText(transcript) {
   return transcript.map((message) => `${message.speaker.toUpperCase()}: ${message.content}`).join("\n\n");
 }
 
+async function skillInstruction(sourceSkill) {
+  if (!sourceSkill) return "Complete the task without reading or using any Agent Skill.";
+  const skillText = await readFile(join(sourceSkill, "SKILL.md"), "utf8");
+  return [
+    "Apply the following Agent Skill to this task. Its entry-point instructions are included here so no shell access is needed to load it.",
+    `Consult referenced resources from ${sourceSkill} only when the skill's routing instructions call for them.`,
+    "--- BEGIN SKILL.md ---",
+    skillText,
+    "--- END SKILL.md ---"
+  ].join("\n\n");
+}
+
 async function runConversation({ runtime, variantDir, runtimeCwd = variantDir, simulatorDir, inputs, test, sourceSkill, label }) {
   const { persona, maxTurns } = test.conversation;
   const transcript = [{ speaker: "user", content: test.prompt }];
@@ -1465,7 +1532,7 @@ async function runConversation({ runtime, variantDir, runtimeCwd = variantDir, s
     const finalTurn = turn === maxTurns || discoveryComplete || discoveryStalled;
     const candidatePrompt = [
       "You are executing an isolated, multi-turn Agent Skill evaluation.",
-      sourceSkill ? `Read and follow the Agent Skill at ${join(sourceSkill, "SKILL.md")} before responding.` : "Complete the task without reading or using any Agent Skill.",
+      await skillInstruction(sourceSkill),
       "You are facilitating a brainstorm with a participant. Ask one focused question when more context would materially improve the result; otherwise produce the final response.",
       `Final turn: ${finalTurn}. Required discovery facts complete: ${discoveryComplete}. Discovery stalled: ${discoveryStalled}. ${finalTurn ? "You must return action=final and synthesize from the evidence already gathered." : "Return action=question or action=final."}`,
       `Conversation so far:\n${transcriptText(transcript)}`,
@@ -1568,9 +1635,7 @@ export async function evaluateVariant({ runtime, inputRoot, iterationPath, test,
   const fixtureInstructions = await fingerprintFixtureInstructions(runtimeWorkspace);
   const runtimeSkillPath = await copyRuntimeSkill(sourceSkill, variantDir);
   const codexMultiAgent = runtime.name === "codex" && Boolean(runtimeSkillPath) && await fileExists(join(runtimeSkillPath, "references", "codex-subagents.md"));
-  const instruction = runtimeSkillPath
-    ? `Read and follow the Agent Skill at ${join(runtimeSkillPath, "SKILL.md")} before completing the task.`
-    : "Complete the task without reading or using any Agent Skill.";
+  const instruction = await skillInstruction(runtimeSkillPath);
   const prompt = [
     "You are executing one isolated evaluation run.",
     instruction,
@@ -1633,13 +1698,22 @@ export async function evaluateVariant({ runtime, inputRoot, iterationPath, test,
     gradeRun.gradingArtifacts = await collectGradingArtifacts(outputs, test.grading_artifacts);
     await writeFile(join(variantDir, "grading-artifacts.json"), JSON.stringify(gradeRun.gradingArtifacts, null, 2));
   }
-  const graded = await runtime.grade({ variantDir, test, run: gradeRun, sarifContext: sarifValidation?.semantic_context ?? null });
+  let graded;
+  try {
+    graded = await runtime.grade({ variantDir, test, run: gradeRun, sarifContext: sarifValidation?.semantic_context ?? null });
+  } finally {
+    if (runtime.name === "codex") {
+      await removeCodexAuthLink(join(variantDir, "codex-home"));
+      await removeCodexAuthLink(join(dirname(variantDir), "codex-home"));
+    }
+  }
   const sarif = sarifValidation?.semantic_context
     ? scoreSarifSemanticMatches(sarifValidation.semantic_context, graded.sarifMatches, graded.sarifMatchingError)
     : sarifValidation;
   const collaborationGrade = collaborationRequirementGrade(test, run, codexMultiAgent);
   if (collaborationGrade) graded.results.push(collaborationGrade);
   if (sarif) graded.results.push({ criterion: "Required SARIF artifact and ground-truth match", threshold: 10, score: sarif.passed ? 10 : 0, passed: sarif.passed, evidence: sarif.evidence });
+  const executionIssue = classifyExecutionFailure(run);
   const result = {
     variant,
     repetition,
@@ -1653,6 +1727,8 @@ export async function evaluateVariant({ runtime, inputRoot, iterationPath, test,
     },
     code: run.code,
     timed_out: run.timedOut,
+    execution_status: executionIssue.status,
+    ...(executionIssue.status === "not_evaluable" ? { execution_issue: executionIssue } : {}),
     timing: run.timing,
     ...(recoveredKiroExit ? { recovered_runtime_exit: true } : {}),
     grader_timing: graded.timing,
@@ -1727,13 +1803,17 @@ export async function writeFinalReport(iterationPath, benchmark) {
     const score = summary.score_summary.average_score?.toFixed(2) ?? "n/a";
     const weighted = discovery.weighted_discovery_rate === null ? "n/a" : `${(discovery.weighted_discovery_rate * 100).toFixed(1)}%`;
     const averageTurns = turns.average_candidate_turns === null ? "n/a" : turns.average_candidate_turns.toFixed(2);
-    lines.push(`| ${variant} | ${summary.passed}/${summary.total} | ${score} | ${discovery.revealed_hidden_facts}/${discovery.available_hidden_facts} | ${weighted} | ${turns.candidate_turns} | ${averageTurns} | ${summary.task_token_usage.total_tokens} |`);
+    const passCount = `${summary.passed}/${summary.evaluated}`;
+    const status = summary.not_evaluable > 0 ? `${passCount}; ${summary.not_evaluable} not evaluable` : passCount;
+    lines.push(`| ${variant} | ${status} | ${score} | ${discovery.revealed_hidden_facts}/${discovery.available_hidden_facts} | ${weighted} | ${turns.candidate_turns} | ${averageTurns} | ${summary.task_token_usage.total_tokens} |`);
   }
   lines.push("", "## Scenario results", "", `| Scenario | ${participantLabel} | Passed | SARIF | SARIF metrics / gates | SARIF evidence | Facts | Turns | Scores |`, "| --- | --- | --- | --- | --- | --- | ---: | ---: | ---: |");
   for (const result of benchmark.results) {
     const discovery = result.conversation?.discovery;
     const sarifMetrics = result.sarif ? `root recall ${result.sarif.metrics?.root_cause_recall ?? "n/a"}; strict recall ${result.sarif.metrics?.strict_recall ?? result.sarif.metrics?.recall ?? "n/a"}; exact severity ${result.sarif.metrics?.exact_severity_rate ?? "n/a"}; false positives ${result.sarif.metrics?.false_positives ?? "n/a"}${result.sarif.gate_failures?.length ? `; failures: ${result.sarif.gate_failures.join(", ")}` : ""}` : "n/a";
-    lines.push(`| ${result.eval_id} | ${result.variant} | ${result.passed ? "yes" : "no"} | ${result.sarif ? (result.sarif.passed ? "matched" : "failed") : "n/a"} | ${sarifMetrics.replace(/\|/g, "\\|")} | ${result.sarif?.evidence?.replace(/\|/g, "\\|") ?? "n/a"} | ${discovery ? `${discovery.revealed_count}/${discovery.available_count}` : "n/a"} | ${result.conversation?.candidate_turns ?? "n/a"} | ${result.grading.map((grade) => `${grade.criterion}: ${grade.score}`).join("; ")} |`);
+    const passed = result.execution_status === "not_evaluable" ? "not evaluable" : (result.passed ? "yes" : "no");
+    const scoreSummary = result.execution_issue?.reason ?? result.grading.map((grade) => `${grade.criterion}: ${grade.score}`).join("; ");
+    lines.push(`| ${result.eval_id} | ${result.variant} | ${passed} | ${result.sarif ? (result.sarif.passed ? "matched" : "failed") : "n/a"} | ${sarifMetrics.replace(/\|/g, "\\|")} | ${result.sarif?.evidence?.replace(/\|/g, "\\|") ?? "n/a"} | ${discovery ? `${discovery.revealed_count}/${discovery.available_count}` : "n/a"} | ${result.conversation?.candidate_turns ?? "n/a"} | ${scoreSummary} |`);
   }
   lines.push("", "## Runtime environment", "", "| Scenario | Variant | Requested model | Model provenance | Fixture instructions |", "| --- | --- | --- | --- | --- |");
   for (const result of benchmark.results) {
@@ -1864,6 +1944,8 @@ export async function main() {
       const runs = results.filter((result) => result.variant === variant);
       return [variant, {
         passed: runs.filter((result) => result.passed).length,
+        evaluated: runs.filter((result) => result.execution_status !== "not_evaluable").length,
+        not_evaluable: runs.filter((result) => result.execution_status === "not_evaluable").length,
         total: runs.length,
         score_summary: summarizeScores(runs),
         discovery_summary: summarizeDiscovery(runs),
@@ -1878,12 +1960,13 @@ export async function main() {
   await writeFile(join(iterationPath, "evaluation.json"), JSON.stringify(benchmark, null, 2));
   const candidates = results.filter((result) => result.variant === "with_skill");
   const oldById = new Map(results.filter((result) => result.variant === "old_skill").map((result) => [String(result.eval_id), result]));
-  const regressions = candidates.filter((candidate) => !candidate.passed || (oldById.get(String(candidate.eval_id))?.passed && !candidate.passed));
+  const regressions = candidates.filter((candidate) => candidate.execution_status !== "not_evaluable" && (!candidate.passed || (oldById.get(String(candidate.eval_id))?.passed && !candidate.passed)));
   for (const [variant, summary] of Object.entries(benchmark.summary)) {
-    process.stdout.write(`${variant}: ${summary.passed}/${summary.total} passed\n`);
+    process.stdout.write(`${variant}: ${summary.passed}/${summary.evaluated} passed; ${summary.not_evaluable} not evaluable\n`);
   }
   process.stdout.write(`Evidence: ${iterationPath}\n`);
-  if (regressions.length > 0) process.exitCode = 1;
+  if (Object.values(benchmark.summary).some((summary) => summary.not_evaluable > 0)) process.exitCode = 2;
+  else if (regressions.length > 0) process.exitCode = 1;
 }
 
 if (import.meta.main) {

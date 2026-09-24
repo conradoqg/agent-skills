@@ -33,13 +33,46 @@ that the earlier smaller inventory was exhaustive.
 Audit evidence should identify the observed artifact version: file hash, commit
 plus dirty-state detail, resource revision, or observation time and query for live
 state. If no reliable version exists, re-observe instead of asserting freshness.
-Invalidate affected units, dependent criteria and final_audit after changes.
+  On a plan revision, compare each existing check against the approved criterion
+  text and current evidence. Preserve unaffected checks only when both still match;
+  invalidate changed checks, their dependent units/conclusions and final_audit.
+  Explain this impact to the user before committing the revision. Keep historical
+  observations as evidence, but promote facts only from a current-revision clean
+  audit. A final integration audit is always required for the current revision.
 
 Keep explicit limits supplied by the user. Do not invent Goal token budgets.
-If a round makes no verified progress, diagnose the specific failure and choose a
-different permitted action; do not repeat an unchanged attempt indefinitely. If no
-action can advance the task, checkpoint with the blocker and exact next requirement.
-An available independent unit may proceed while another is blocked.
+If an attempt fails with an explicit capability boundary (for example, an unsupported
+surface or a subagent thread limit), record it and stop retrying that operation until
+the capability or relevant conditions change. For an inconclusive result without an
+explicit boundary, allow at most one materially different approach; if it yields no
+new evidence, checkpoint the line of work instead of repeating it. Track attempts
+against the evidence gap in the round record and `next_step`; resuming does not reset
+this limit. Retry only after the missing input, permissions, tool capability or
+relevant artifact changes. Record what was tried, what evidence is missing, why it
+blocks acceptance and the exact condition that would make a new attempt useful. Do
+not weaken the approved scope to clear the blocker. An independent unit may proceed
+if its dependencies are verified.
+
+If every remaining required unit is blocked, or no permitted action can advance any
+unit, save and validate the checkpoint, explain the blocker and ask only for the
+access or decision needed to continue. Do not claim completion or pretend a blocked
+unit passed. End the current turn awaiting that input; use only Goal lifecycle
+controls documented and available in the host. A blocker is a stopping condition for
+the current attempt, not approval to silently change the contract.
+
+For every progress update, interruption, blocked handoff or resume, compose a
+self-contained message using [the progress template](../assets/progress-template.md).
+Assume the user may return hours or days later without reading prior updates or
+internal reasoning. Include the approved outcome, current phase/status, work and
+evidence since the last update, verified units / total, what remains and why, what
+user input is needed (if any), and the next action. Define technical terms and
+explain IDs. Translate host controls such as Goal status and checkpoint into the
+user's language; name the control only if it helps them act. A question must identify
+the exact requested action and its consequence;
+do not ask a generic comprehension question. If independent work can proceed, state
+that no response is needed yet and continue. If the user explicitly asks whether an
+explanation was clear, contextualize first and ask about clarity rather than testing
+recall.
 
 Persist at every role boundary. Stop/pause instructions checkpoint promptly. Report
 partial verified results and gaps on limits or interruption. Goal status operations

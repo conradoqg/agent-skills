@@ -20,7 +20,8 @@ requirement. The manager is the only writer of control records.
   External evidence needs a local observation record, not a fabricated local source.
 - Audit: id, report (local file), plan_revision, auditor (child identity), scope (unit, integration, reconciliation), integrity
   (clean, suspect, violation), checks (one per examined requirement).
-- Check: requirement (ID), verdict (pass, fail, blocked), evidence (IDs).
+- Check: requirement (ID), verdict (pass, fail, blocked), evidence (IDs), and
+  criterion_text (the exact approved criterion text this check assessed).
 - Fact: statement, audit (current clean audit ID), evidence (IDs).
 - Hypotheses: unverified strings, never promoted merely because an executor said so.
 
@@ -35,8 +36,14 @@ manager may execute a given work item at once.
 A completed work item requires all its units verified, every mandatory requirement
 represented in units, and a clean current-revision final_audit with integration scope passing every mandatory
 criterion. Optional work not undertaken stays in plan exclusions, not as silently
-ignored pending units. A normal verified unit requires a clean current-revision
-passing audit of all its referenced requirements and verified dependencies.
+ignored pending units. A normal verified unit requires a clean passing audit of all
+its referenced requirements and verified dependencies. An audit from an earlier
+plan revision may support a unit only when every passing check includes
+criterion_text exactly matching the current approved criterion, its evidence remains
+current, and no changed requirement or dependency invalidated that unit. Old checks
+without criterion_text cannot establish current verification after a revision and
+must be re-audited. The final integration audit must always be clean and from the
+current plan revision.
 
 The validator checks reference structure and file existence, not whether claims are
 true, reports faithfully transcribed, artifact versions current, or permissions

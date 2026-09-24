@@ -19,7 +19,11 @@ agree on criterion-specific quality anchors; do not invent a universal score.
 Approval fixes a numbered plan revision. Record the user's approval instruction;
 do not infer approval from elapsed time or from a request to discuss. Already
 approved plans need only gap checks, not a new interview. Material changes require
-a recorded decision; ordinary sequencing and decomposition do not.
+a recorded decision; ordinary sequencing and decomposition do not. Before asking
+for approval of a material revision, explain which acceptance criteria, units and
+dependent checks change, which earlier checks remain valid and why, and the exact
+verification still needed. Do not silently invalidate the whole plan or preserve a
+check whose criterion, evidence or dependency changed.
 
 When writes are permitted, save plan.md and state.json in the selected work
 directory. Start from [state template](../assets/state-template.json) and follow
