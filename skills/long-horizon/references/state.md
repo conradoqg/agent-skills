@@ -1,20 +1,43 @@
-# State format, version 1
+# State and artifact layout
 
 Copy assets/state-template.json when opening a work item. Field names and enums
 stay in English; user-facing prose follows the user's language. Records belong to
 one work directory, with IDs stable across rounds. Never reuse an ID for a different
 requirement. The manager is the only writer of control records.
 
-- Top level: version=1, id, plan (local relative file), plan_revision (positive
+Use this layout for new work items:
+
+```text
+.long-horizon/<id>/
+  plan.md                  current approved contract
+  state.json               machine-readable milestone state
+  report.md                short human progress view
+  workstreams/<id>.md      one running note per stable domain, if used
+  evidence/<milestone>.md  concise observations and links to source/results
+  audits/<milestone>-NN.md immutable independent verdicts
+  history/                 earlier approved plans, only when revised
+```
+
+Do not invent other top-level summaries or one directory per file, search or
+attempt. Large raw outputs may live under `evidence/<milestone>/` only when they
+are necessary to reproduce a check; link them from the concise evidence note.
+The current plan remains `plan.md`; save the prior approved text in `history/`
+before a revision. For existing work, keep all historical paths and evidence
+valid; adopt the layout for new records without moving or renaming referenced
+files. New state files declare `layout: "milestones-v1"`; legacy files without
+that field remain valid.
+
+- Top level: version=1, layout (for new work), id, plan (local relative file), plan_revision (positive
   integer), approved (boolean), status, requirements, units, evidence, audits,
   facts, hypotheses, final_audit (audit ID or null), next_step.
 - Work status: planning, ready, running, paused, blocked, completed.
 - Requirement: id, criterion, required (boolean). Requirements are the approved
   acceptance criteria; keep their text synchronized with the numbered plan revision.
-- Unit: id, goal, requirements (IDs), depends_on (unit IDs), status, audit (ID or
-  null). Unit status: pending, in_progress, awaiting_audit, verified, blocked.
-  Blocked units also have a blocker explanation. Inventory items map to unit IDs
-  in the plan or a local evidence record; explicitly record exclusions.
+- Unit: one outcome-sized milestone with id, goal, requirements (IDs), depends_on
+  (unit IDs), status, audit (ID or null). Unit status: pending, in_progress,
+  awaiting_audit, verified, blocked. Blocked units also have a blocker
+  explanation. Map inventory items to milestone evidence, not one state unit per
+  item; explicitly record exclusions.
 - Evidence: id, source (actual file/resource/command), observed_version (hash,
   resource revision or timed observation), record (local file containing observation).
   External evidence needs a local observation record, not a fabricated local source.
@@ -28,7 +51,7 @@ requirement. The manager is the only writer of control records.
 Local references use forward-slash relative paths inside this work directory.
 Round reports can themselves contain observations and serve as evidence records.
 The parent saves child reports unchanged before extracting structural metadata.
-Round files are numbered and preserved; updates replace state.json, not history.
+Audit files are numbered and preserved; updates replace state.json, not history.
 Write the replacement to a sibling temporary file, validate it, then atomically
 replace state.json to avoid a half-written checkpoint. This is not a lock; only one
 manager may execute a given work item at once.
@@ -44,12 +67,21 @@ current, and no changed requirement or dependency invalidated that unit. Old che
 without criterion_text cannot establish current verification after a revision and
 must be re-audited. The final integration audit must always be clean and from the
 current plan revision.
+The same final integration audit may be referenced by several units when it
+directly checks their accepted outcomes and all dependencies are satisfied;
+there is no requirement for one audit file per unit.
 
 The validator checks reference structure and file existence, not whether claims are
 true, reports faithfully transcribed, artifact versions current, or permissions
 actually enforced. These are the manager/auditor's responsibilities. An audit ID
 alone cannot demonstrate that a different child ran: retain the child identity and
 host trace pointer in the audit report and inspect them during evaluation.
+
+Keep `report.md` short: outcome and revision, milestone table (pending / active /
+delivered / verified / blocked), verified count, concrete next deliverable and
+only current blockers. It is derived from `state.json` plus evidence; audit and
+attempt totals are diagnostic and never presented as completion. A milestone
+may be delivered yet awaiting an auditor; show that distinction.
 
 Unit audits assess the contribution to each referenced requirement within that
 unit's explicit scope and local acceptance checks. A passing inventory unit does

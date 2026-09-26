@@ -1,7 +1,7 @@
-# Audit <ID> / Round <number>
+# Audit <ID> / Milestone <ID or final integration>
 Scope: <unit / integration / reconciliation>
 Plan revision and unit:
-Auditor identity and fresh-context mechanism:
+Auditor identity and separation from implementation:
 Read-only restriction: <enforced or instructional, with actual capability>
 Integrity: <clean / suspect / violation>
 

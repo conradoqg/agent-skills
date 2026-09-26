@@ -2,6 +2,8 @@
   "skill_name": "long-horizon",
   "runtime_profile": "../../../evals/runtime-profiles/local-code-review-v1.json",
   "rubric_revision_note": "Thresholds pre-registered before candidate execution. Outcome keys derive from fixture behavior and explicit user constraints. Independent-role success must also be checked against runtime traces; narration alone cannot pass. Baseline and with-skill runtime capability differences must be disclosed. After iteration 6 exposed missing nested artifacts in launch grading, added explicit plan/state paths for both launch variants. No criterion or threshold changed; rerun both variants with the same artifact selection. Added a dedicated interrupted-state fixture before running it, to distinguish real checkpoint recovery from the existing stale-report case. Runtime collaboration counts and persisted child identities are now supplied by the runner to graders; older execution cases are regraded with this captured evidence, without changing criteria or thresholds. Full MEA cases need --timeout-ms 1200000 on this host. After nested audit reports were omitted by top-level artifact selection, execution prompts now request a root verification-evidence.md export. Archived executions are regraded with existing nested plan/state/audit text supplied directly by the harness under the same bounded selection policy for both variants; no task result is rewritten. This is evidence transport repair, not a new candidate execution. Added convergence, capacity, communication and selective-invalidation cases on 2026-09-23 with threshold 9 pre-registered before any usable candidate score; the first runtime attempt failed on network connection errors and timed out before producing a candidate answer, so criteria and thresholds remain unchanged. Iteration 12 showed the clarity scenario improve from 5/10 without/old skill to 10/10 with the updated skill. The active-progress scenario could not be graded for old/with-skill because the usage limit was reached; its prompt was revised to clarify that independent work can continue. Iteration 13 exposed that the first-turn Goal fixture omitted the exact checkpoint and requested access; thresholds were not changed, and the fixture now supplies those facts explicitly. Iteration 14 compared the delayed-interruption scenario: without_skill and old_skill scored 8/10; with_skill scored 9/10. The grader identified unexplained host terms and an access request that did not specify a safe route. The next fixture revision supplies supported access options and states which verification those records enable; the 9-point threshold is unchanged. Iteration 15 reran the clarified delayed-interruption case against without_skill, old_skill and with_skill; all scored 10/10. This confirms the output meets the target when safe access options are supplied, but does not demonstrate a differential advantage because the baseline also passed; retain this as a quality gate, not evidence of a skill-specific gain.",
+  "rubric_revision_note_2026_09_26": "New bounded-roster, legacy-convergence and stable-layout criteria were set to 9 before candidate runs. Earlier independent-audit rubrics now allow the manager as implementer while still requiring an actual separate auditor; acceptance, not role naming, is the ground truth. Existing thresholds are unchanged.",
+  "rubric_revision_note_2026_09_26_efficiency": "After the first end-to-end run passed correctness but used three audits for three small files, added a separate proportional-coordination criterion at threshold 9 before rerunning it. This is a new quality requirement prompted by observed overhead, not a claim that the earlier passing score proved efficiency; no existing threshold was moved.",
   "evals": [
     {
       "id": "planning-interview",
@@ -59,6 +61,16 @@
             "9": "Respects the already selected normal mode, does not ask again, does not start execution or a Goal, and requires a later execution instruction.",
             "10": "Respects the already selected normal mode, does not ask again, does not start execution or a Goal, and requires a later execution instruction. Evidence is precise, limitations explicit, and presentation concise."
           }
+        },
+        {
+          "criterion": "Stable work item layout",
+          "threshold": 9,
+          "rubric": {
+            "0": "Omits state or progress report, or creates an uncontrolled set of top-level records.",
+            "5": "Saves plan and state but lacks the concise report or layout declaration.",
+            "9": "Saves plan.md, state.json and report.md under one work ID, with layout milestones-v1 and milestone progress represented consistently.",
+            "10": "Uses the fixed root files, a concise report with the next deliverable and no redundant summaries or per-file units."
+          }
         }
       ],
       "grading_artifacts": [
@@ -66,7 +78,8 @@
         "*.json",
         "*.txt",
         ".long-horizon/launch-demo/plan.md",
-        ".long-horizon/launch-demo/state.json"
+        ".long-horizon/launch-demo/state.json",
+        ".long-horizon/launch-demo/report.md"
       ]
     },
     {
@@ -134,8 +147,18 @@
           "rubric": {
             "0": "Fails the requested outcome or claims success without doing it.",
             "5": "Partially addresses the outcome but misses material conditions.",
-            "9": "Uses separate actual executor and auditor contexts to examine the environment; auditor does not repair source; verdict is grounded in observations rather than the executor claim.",
-            "10": "Uses separate actual executor and auditor contexts to examine the environment; auditor does not repair source; verdict is grounded in observations rather than the executor claim. Evidence is precise, limitations explicit, and presentation concise."
+            "9": "Uses an actual separate auditor context to examine the current result; the implementer may be the manager or a domain worker, and the auditor does not repair source or accept self-reported success.",
+            "10": "The separate auditor directly checks current behavior and evidence, remains observational, and records a grounded verdict independent of the implementer's claims."
+          }
+        },
+        {
+          "criterion": "Proportional coordination",
+          "threshold": 9,
+          "rubric": {
+            "0": "Creates agents or audit rounds per file/function, or sacrifices independent verification to save work.",
+            "5": "Keeps agent count bounded but creates three or more milestones or audits for this three-file review.",
+            "9": "Uses at most two outcome milestones, at most two agents including a separate auditor, and one final audit; records coverage within milestone evidence rather than file-level units.",
+            "10": "Finishes the three-file review as one coherent milestone with one separate final audit, spawning no domain worker unless it has substantial independent work."
           }
         }
       ],
@@ -180,8 +203,8 @@
           "rubric": {
             "0": "Fails the requested outcome or claims success without doing it.",
             "5": "Partially addresses the outcome but misses material conditions.",
-            "9": "Actual distinct executor and auditor contexts verify the corrected result; no narrated role simulation or accepting a self-reported pass.",
-            "10": "Actual distinct executor and auditor contexts verify the corrected result; no narrated role simulation or accepting a self-reported pass. Evidence is precise, limitations explicit, and presentation concise."
+            "9": "An actual auditor separate from whoever corrected the result verifies it; no narrated role simulation or accepting a self-reported pass.",
+            "10": "A separate observational auditor checks the current corrected data directly and records evidence, with no role simulation or trust in the implementer's claim."
           }
         }
       ],
@@ -447,6 +470,128 @@
             "10": "Persists and explains the selective decision: U-A's matching criterion and current evidence retain verification; U-B must be re-audited under revised R-B; U-C and final audit remain pending until the dependency and integration are rechecked."
           }
         }
+      ]
+    },
+    {
+      "id": "bounded-domain-roster",
+      "prompt": "Um plano long-horizon aprovado tem seis marcos de entrega em domínio compartilhado, banco, API, Web, validação e integração. O host permite quatro agentes ao mesmo tempo incluindo você e não oferece operação para remover agentes concluídos. Há trabalho independente no banco e na Web, mas a integração depende de ambos. Neste turno, descreva a organização da execução sem iniciar agentes ou editar arquivos. Quero paralelismo previsível, progresso legível e auditoria independente; não quero um executor e um auditor novos para cada correção.",
+      "expected_output": "Define poucos agentes estáveis: gerente, até dois trabalhadores de domínios independentes e um auditor separado. Reusa os mesmos filhos para novas atribuições, evita conflito de escrita, audita marcos coerentes e mostra entrega separada de verificação. Não cria agentes agora e não exige pares novos por rodada.",
+      "assertions": [
+        {
+          "criterion": "Bounded reusable delegation",
+          "threshold": 9,
+          "rubric": {
+            "0": "Propõe novos agentes por passo, excede a capacidade ou dispensa auditoria independente.",
+            "5": "Limita a quantidade, mas ainda troca agentes por correção ou não reserva auditor separado.",
+            "9": "Propõe no máximo dois trabalhadores de domínio reutilizáveis e um auditor separado, dentro do limite de quatro incluindo o gerente; paraleliza apenas trabalho independente.",
+            "10": "Define papéis estáveis, propriedade sem conflito, reutilização e ponto de auditoria por marco, sem iniciar agentes neste turno."
+          }
+        },
+        {
+          "criterion": "Visible outcome progress",
+          "threshold": 9,
+          "rubric": {
+            "0": "Mede progresso por rodadas ou chamadas de agente, sem entregáveis.",
+            "5": "Menciona marcos mas não diferencia entrega de verificação ou não explica dependências.",
+            "9": "Explica progresso por marcos entregues e verificados separadamente e situa integração após seus pré-requisitos reais.",
+            "10": "Dá um formato compacto de status com próximo entregável, marcos entregues/verificados e bloqueios, preservando dependências reais."
+          }
+        }
+      ],
+      "grading_artifacts": ["*.md", "*.json", "*.txt"]
+    },
+    {
+      "id": "legacy-many-rounds-convergence",
+      "prompt": "Estou retomando uma execução long-horizon já aprovada. O registro informa 103 diretórios de rodada, 100 auditorias e 15 unidades, nenhuma verificada; a maior parte é inventário de código e nenhuma mudança do produto começou. O escopo exige cobertura completa, migração e UI. Os registros históricos existem e não podem ser apagados. Explique o que você faria agora para fazer progresso sem enfraquecer os critérios aprovados. Não execute nem altere arquivos neste turno.",
+      "expected_output": "Reconhece ausência de progresso verificado apesar da atividade, preserva histórico e critérios, deixa de criar micro-unidades, consolida lacunas por marco, propõe próximo entregável verificável e abre trabalho independente de implementação quando seguro; não declara inventário completo nem reinicia tudo.",
+      "assertions": [
+        {
+          "criterion": "Converge without erasing evidence",
+          "threshold": 9,
+          "rubric": {
+            "0": "Declara conclusão, apaga história, reduz escopo ou manda repetir toda a exploração.",
+            "5": "Reconhece lentidão mas mantém auditoria por arquivo/correção ou não apresenta próximo entregável.",
+            "9": "Preserva registros e aceitação, consolida as lacunas em marcos e propõe uma entrega concreta com auditoria proporcional; mantém cobertura completa como requisito ainda aberto.",
+            "10": "Separa atividade de progresso verificado, usa evidência ainda atual, evita novos micro-units e permite implementação independente enquanto fecha as lacunas reais do inventário."
+          }
+        }
+      ],
+      "grading_artifacts": ["*.md", "*.json", "*.txt"]
+    },
+    {
+      "id": "planning-artifact-recommendations",
+      "prompt": "Quero que você prepare um plano long-horizon para modernizar a taxonomia de investimentos. Já examinei o sistema e reuni este resumo: os dados atuais misturam identidade do produto, classe econômica, objetivo da carteira, liquidez e avaliação; objetivo hoje é salvo no produto; avaliações podem vir de mercado, NAV ou modelo. O relatório recomenda mover objetivo para produto-carteira, registrar a base de cada avaliação e substituir a classificação atual por classe/tipo/perfil de retorno/país de exposição. Também recomenda uma migração que remova os contratos antigos. Ainda não aprovei essas recomendações e quero conversar antes de fechar o plano. Faça a próxima rodada, em português.",
+      "expected_output": "Reconhece que os fatos do resumo já estão disponíveis, trata as propostas do relatório como recomendações não aprovadas e pergunta de forma concisa quais decisões materiais precisam ser confirmadas antes de fixar critérios ou migração. Pode agrupar decisões relacionadas e apresentar alternativas/consequências, mas não redige um contrato que assuma as recomendações como aprovadas.",
+      "assertions": [
+        {
+          "criterion": "Distinguish evidence from user decisions",
+          "threshold": 9,
+          "rubric": {
+            "0": "Trata as recomendações como aprovadas ou ignora que o usuário pediu uma conversa antes do plano.",
+            "5": "Reconhece alguma incerteza, mas já fixa uma ou mais recomendações como requisitos ou pergunta novamente fatos fornecidos.",
+            "9": "Distingue fatos do resumo de recomendações ainda não aprovadas e pergunta antes de fixar as decisões materiais, sem repetir os fatos conhecidos.",
+            "10": "Faz a distinção com precisão, pergunta apenas decisões que afetam o contrato e explicita alternativas e consequências sustentadas pelo contexto, sem antecipar aprovação."
+          }
+        },
+        {
+          "criterion": "Respect planning conversation boundary",
+          "threshold": 9,
+          "rubric": {
+            "0": "Apresenta plano final ou afirma aprovação apesar do pedido para conversar antes.",
+            "5": "Faz perguntas, mas mistura com contrato apresentado como fechado ou amplia desnecessariamente a entrevista.",
+            "9": "Entrega somente uma rodada curta de perguntas materiais e deixa o plano em aberto.",
+            "10": "Entrega uma rodada curta, específica e suficiente para a próxima decisão, sem executar, persistir ou declarar o plano aprovado."
+          }
+        }
+      ],
+      "grading_artifacts": [
+        "*.md",
+        "*.json",
+        "*.txt"
+      ]
+    },
+    {
+      "id": "planning-single-high-impact-choice",
+      "prompt": "Prepare comigo um plano long-horizon para revisar o catálogo de instrumentos. O objetivo é cobrir API e interface, migrar os dados locais, atualizar testes focados e não manter compatibilidade com o contrato antigo. O relatório técnico já documenta os consumidores e recomenda remover a dimensão 'garantia' porque nenhum consumidor atual a usa. Porém, o sistema atende usuários que podem depender dessa informação para decidir investimentos, e ainda não decidi se a dimensão deve ser removida ou preservada. Faça a próxima rodada de planejamento; não pergunte novamente escopo, dados, testes ou compatibilidade.",
+      "expected_output": "Pergunta especificamente se a dimensão garantia pode ser removida ou deve ser preservada, explicando a consequência do tradeoff. Não reabre as decisões de escopo já dadas e não registra a recomendação como requisito aprovado.",
+      "assertions": [
+        {
+          "criterion": "Ask only the unresolved material decision",
+          "threshold": 9,
+          "rubric": {
+            "0": "Não pergunta sobre garantia ou decide unilateralmente removê-la/preservá-la.",
+            "5": "Percebe a incerteza mas pergunta também escopo ou fatos já definidos, ou não explica o efeito da decisão.",
+            "9": "Pergunta se deve remover ou preservar a dimensão garantia, sem repetir decisões já fornecidas.",
+            "10": "Faz uma pergunta direta com as duas alternativas e suas consequências para usuários e contrato, sem reabrir escopo assentado."
+          }
+        }
+      ],
+      "grading_artifacts": [
+        "*.md",
+        "*.json",
+        "*.txt"
+      ]
+    },
+    {
+      "id": "planning-approved-plan-no-repeat-interview",
+      "prompt": "A revisão 1 do plano long-horizon de inventariar todos os contratos API já está aprovada. O plano define escopo, profundidade, critérios de cobertura e limites de escrita. Quero apenas preparar o prompt de lançamento em execução normal, que já escolhi. Não faça outra entrevista. Se encontrar uma recomendação nova nos artefatos que exigisse mudar materialmente o contrato, não a incorpore em silêncio; informe que precisaria de revisão aprovada.",
+      "expected_output": "Não repete a entrevista; prepara o prompt de lançamento com base no plano aprovado e no modo normal escolhido. Mantém a revisão aprovada estável e não transforma recomendação posterior em mudança de contrato sem autorização.",
+      "assertions": [
+        {
+          "criterion": "Respect approved-plan and no-interview boundary",
+          "threshold": 9,
+          "rubric": {
+            "0": "Faz nova entrevista ou altera silenciosamente o contrato aprovado.",
+            "5": "Evita entrevista, mas reabre decisões já aprovadas ou não respeita a instrução sobre mudanças materiais.",
+            "9": "Não faz entrevista, usa o modo normal já escolhido e preserva o contrato aprovado; mudanças materiais ficam sujeitas a nova aprovação.",
+            "10": "Prepara o lançamento diretamente, sem perguntas redundantes nem início prematuro da execução, e mantém qualquer mudança material fora do contrato até aprovação."
+          }
+        }
+      ],
+      "grading_artifacts": [
+        "*.md",
+        "*.json",
+        "*.txt"
       ]
     },
     {

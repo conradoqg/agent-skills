@@ -18,7 +18,8 @@ Blocked-stop condition and exact user input/access needed to resume:
 
 ## Operational plan
 Inventory discovery/audit unit when coverage is exhaustive:
-Initial units, dependencies and their acceptance:
+One to six outcome-sized milestones, real dependencies and their acceptance:
+Independent domain workstreams (up to two) and artifact ownership, if useful:
 Final integrated verification:
 
 ## Decisions and revisions

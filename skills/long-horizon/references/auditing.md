@@ -4,6 +4,12 @@ Read the original outcome and approved criteria before the executor's claims.
 Use claims to locate evidence, never as evidence that the requirement passed.
 Inspect current source, outputs, data or application state directly. The presence
 of a report, a green status or a screenshot does not establish its correctness.
+Audit the integrated result by default. Audit an intermediate milestone only if
+its verdict controls a consequential next step or avoids material rework. Audit
+coherent outcomes, not each search, file or minor correction.
+Prioritize behavior and coverage that affect acceptance. Check provenance and
+artifact versions where they matter; do not demand duplicate manifests or
+line-by-line recitation when direct inspection answers the criterion.
 
 For each criterion return pass, fail or blocked, with concrete observations,
 evidence IDs and remaining gaps. Check depth as well as coverage: a list of opened
@@ -25,3 +31,6 @@ assumptions but does not eliminate model error or prove independence of judgment
 On a final audit, inspect the assembled outcome, criterion interactions, current
 evidence and unresolved inventory boundaries. Individual unit passes do not prove
 the integrated result. Use the same acceptance standard as the approved revision.
+An auditor reused across milestones is independent only if it never implemented
+this work item and re-inspects the current integrated artifacts. State this limit
+plainly rather than claiming a fresh context.

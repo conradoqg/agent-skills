@@ -1,15 +1,16 @@
 # Progress and blocker update
 
-Use for every round update, interruption, blocked handoff and resume. Write it so a
+Use after a milestone change, sustained-work update, interruption, blocked handoff
+or resume. Write it so a
 user who did not follow the execution can understand the message without opening
 earlier turns or internal reasoning. Keep it concise, but include each applicable
 item below. Do not use IDs or status labels without explaining them.
 
 **Work:** <approved outcome in the user's words>
 
-**Where it stands:** <current phase and status; verified required units / total>
+**Where it stands:** <current phase; delivered milestones and independently verified milestones / total>
 
-**What happened:** <what was checked since the last user-facing update and what the
+**What happened:** <the concrete deliverable or check since the last update and what the
 evidence showed>
 
 **Why it matters:** <effect on the agreed result; what is still unverified>
@@ -19,7 +20,7 @@ what it changes; name the specific evidence or operation this unlocks. Ask for a
 authorized access route or approved export, not for passwords or tokens in chat.
 Write “Nothing now” if independent work can continue>
 
-**Next:** <what will happen next, or the condition that will allow work to resume.
+**Next:** <the next concrete deliverable, or the condition that will allow work to resume.
 Explain “checkpoint” as the saved point to resume from; do not rely on the term>
 
 Do not say the task is complete while any required unit is blocked or unverified.

@@ -58,6 +58,8 @@ def validate(state, base):
     if not isinstance(state, dict):
         return ['state: expected object']
     check(type(state.get('version')) is int and state['version'] == 1, 'version: expected 1')
+    layout = state.get('layout')
+    check(layout is None or layout == 'milestones-v1', 'layout: expected milestones-v1 when present')
     check(text(state.get('id')), 'id: required')
     revision = state.get('plan_revision')
     check(type(revision) is int and revision > 0, 'plan_revision: positive integer required')
@@ -67,6 +69,10 @@ def validate(state, base):
     if state.get('status') != 'planning':
         check(state.get('approved') is True, 'work outside planning requires approval')
     local_file(state.get('plan'), 'plan')
+    if layout == 'milestones-v1':
+        check(state.get('plan') == 'plan.md', 'layout: current plan must be plan.md')
+        if state.get('status') != 'planning':
+            local_file('report.md', 'layout.report')
     requirements = records('requirements')
     units = records('units')
     evidence = records('evidence')
@@ -79,8 +85,14 @@ def validate(state, base):
         check(text(row.get('source')), f'{ident}: source required')
         check(text(row.get('observed_version')), f'{ident}: observed_version required')
         local_file(row.get('record'), f'{ident}.record')
+        if layout == 'milestones-v1':
+            check(isinstance(row.get('record'), str) and row['record'].startswith('evidence/'),
+                  f'{ident}.record: expected evidence/ path')
     for ident, row in audits.items():
         local_file(row.get('report'), f'{ident}.report')
+        if layout == 'milestones-v1':
+            check(isinstance(row.get('report'), str) and row['report'].startswith('audits/'),
+                  f'{ident}.report: expected audits/ path')
         check(type(row.get('plan_revision')) is int, f'{ident}: plan_revision required')
         check(member(row.get('integrity'), {'clean', 'suspect', 'violation'}), f'{ident}: invalid integrity')
         check(text(row.get('auditor')), f'{ident}: auditor identity required')

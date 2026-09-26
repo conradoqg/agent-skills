@@ -1,5 +1,6 @@
 {
   "version": 1,
+  "layout": "milestones-v1",
   "id": "replace-work-id",
   "plan": "plan.md",
   "plan_revision": 1,

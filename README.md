@@ -8,7 +8,7 @@ license information where applicable.
 
 | Skill | Category | Purpose |
 |---|---|---|
-| `long-horizon` | General | Plan persistent work and execute bounded units with independent evidence-based audits and resumable progress. |
+| `long-horizon` | General | Plan resumable work with clear milestones, bounded domain delegation, concise progress, and independent completion audits. |
 | `code-craftsmanship-refactor` | General | Polish existing code for clarity, cohesion, organization, and useful documentation while preserving behavior. |
 | `deck-specification` | General | Create, enrich, update, and review format-neutral deck specifications before rendering a presentation. |
 | `product-interface-ux` | General | Create and review web product interfaces using evidence-backed interaction, state, accessibility, and motion behavior without prescribing aesthetics. |
@@ -103,7 +103,7 @@ node scripts/evaluate-skills.ts --skill authoring-skills --eval migration-discov
 node scripts/benchmark-skills.ts --participant /tmp/brainstorm-ideas --participant /tmp/other-brainstorm --evals /path/to/shared-evals.json --eval migration-discovery --eval boundary-case
 ```
 
-For `long-horizon`, allow time for real executor/auditor rounds:
+For `long-horizon`, allow time for a real independent completion audit:
 `node scripts/evaluate-skills.ts --skill long-horizon --timeout-ms 1200000`.
 Review persisted child identities as well as scores; the runner enables native
 subagents for this skill, while the default baseline does not enable them. This
