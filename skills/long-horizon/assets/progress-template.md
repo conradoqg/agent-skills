@@ -1,29 +1,35 @@
-# Progress and blocker update
+# Progress update
 
-Use after a milestone change, sustained-work update, interruption, blocked handoff
-or resume. Write it so a
-user who did not follow the execution can understand the message without opening
-earlier turns or internal reasoning. Keep it concise, but include each applicable
-item below. Do not use IDs or status labels without explaining them.
+Use this format at the start and end of every execution turn or resume, and after
+a milestone change, sustained-work update, interruption or blocker. It must stand
+alone for a user who may have missed prior turns. Keep it concise and use the
+user's language. Explain IDs and technical terms before relying on them.
 
-**Work:** <approved outcome in the user's words>
+**Trabalho:** <resultado aprovado, nas palavras do usuário>
 
-**Where it stands:** <current phase; delivered milestones and independently verified milestones / total>
+**Progresso**
+- [x] <marco concluído e verificado; cite artefato/evidência>
+- [~] <entrega parcial ainda sem passar todos os critérios; diga o que falta>
+- [ ] <marco pendente>
+- [!] <marco bloqueado; explique o bloqueio e a condição para retomar>
 
-**What happened:** <the concrete deliverable or check since the last update and what the
-evidence showed>
+**Nesta execução:** <no início: o que será entregue agora; no fim: o que foi
+produzido e o que a evidência demonstra. Se nada avançou, diga isso explicitamente.>
 
-**Why it matters:** <effect on the agreed result; what is still unverified>
+**Falta:** <critérios ou marcos restantes, em ordem de dependência; blockers e
+decisão/acesso exatos que cabem ao usuário. Escreva “Nada agora” se o trabalho puder continuar.>
 
-**Needed from you:** <exact access, information or decision, why it is needed and
-what it changes; name the specific evidence or operation this unlocks. Ask for an
-authorized access route or approved export, not for passwords or tokens in chat.
-Write “Nothing now” if independent work can continue>
+**Próximo passo:** <um entregável concreto prioritário, ou a condição para retomar>
 
-**Next:** <the next concrete deliverable, or the condition that will allow work to resume.
-Explain “checkpoint” as the saved point to resume from; do not rely on the term>
+Check semantics: `[x]` means accepted and independently verified, `[~]` means
+partial or delivered but not yet accepted/verified, `[ ]` means not started or
+pending, and `[!]` means blocked. Never count activity, rounds, agents or audits
+as completed work. At the beginning, the progress counts and statuses come from
+reconciled current records; at the end, compare against the beginning so the user
+can see what changed during this turn. A full task list may live in `report.md`;
+the chat update should show every milestone and the single prioritized next step.
 
-Do not say the task is complete while any required unit is blocked or unverified.
-Do not ask the user to reconstruct the history, interpret unexplained jargon, or
-confirm generic understanding. If a decision is required, explain its options and
-consequences before asking one direct question.
+Do not say the task is complete while any required item is partial, pending,
+blocked or unverified. Do not ask the user to reconstruct history or confirm
+generic understanding. If a decision is required, state its consequence before
+asking one direct question.

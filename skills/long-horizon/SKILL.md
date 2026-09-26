@@ -83,7 +83,9 @@ instructional.
 - Checkpoint on interruption, an explicitly set limit, or inability to advance.
   Never treat spent time/tokens, repetition or a full checklist as proof of success.
 
-Every user-facing update after a milestone, interruption, blocker or resume must stand
+Every execution turn starts and ends with a standalone checklist using
+[the progress template](assets/progress-template.md). Every other user-facing update
+after a milestone, interruption, blocker or resume must stand
 on its own. Assume the user may have missed the execution and cannot see internal
 reasoning. Anchor the message to the approved outcome; state the current phase and
 status; explain what changed and what the evidence means; give completed and
@@ -103,8 +105,16 @@ result and define necessary terms before asking about clarity. Do not turn that
 request into a quiz about facts unless the user explicitly asks for a comprehension
 test.
 
-Derive a concise `report.md` from the current state and evidence. Do not maintain
-a second competing checklist or use audit/round counts as a measure of progress.
+Derive a concise `report.md` checklist from the current state and evidence. Use
+`[x]` only for accepted, independently verified milestones; `[~]` for partial or
+delivered-but-unverified work; `[ ]` for pending work; and `[!]` for blocked work.
+Do not maintain a second competing checklist or use audit/round counts as a
+measure of progress. Keep one primary deliverable active until it passes its
+acceptance checks or is explicitly blocked. A transition to a later dependent
+milestone before that point is not progress; independent parallel work is allowed
+only when its dependencies and distinct ownership are explicit. At turn end,
+compare the checklist with the opening update and explicitly say if no milestone
+advanced, including why substantial activity did not yet satisfy acceptance.
 Run `python <skill-dir>/scripts/validate-state.py <work-dir>/state.json` before
 handoff, after state updates and before declaring completion. It checks records,
 not truth, evidence freshness, isolation or audit quality.

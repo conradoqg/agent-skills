@@ -20,12 +20,22 @@
    more effort setting up an agent than the bounded work itself. Use the [contract](../assets/contract-template.md)
    for each bounded assignment; reuse the same worker for subsequent assignments
    in its workstream.
-4. Execute a milestone until its deliverable is coherent. Run focused checks and
-   record only the evidence needed to prove acceptance. Mark implementation
-   progress separately from independent verification. Do not let an inventory
-   become an endless prerequisite: inspect enough to safely design independent
-   parts, continue discovery for the exhaustive boundary, and reserve the final
-   coverage claim for the completed inventory audit.
+4. Execute the selected milestone until its named deliverable is coherent. At
+   the start of every execution turn and resume, send the standalone checklist
+   in [the progress template](../assets/progress-template.md), reconciled against
+   current artifacts; include the last concrete change, verified counts,
+   remaining milestones, blocker and this turn's single primary deliverable.
+   Keep that deliverable as the priority until its acceptance checks pass or a
+   concrete blocker is recorded. Do not announce a transition, mark the
+   milestone delivered, or spend the turn opening a later dependent milestone
+   while the current one is incomplete. Independent work may continue only when
+   the plan records no unmet dependency and separate ownership; show it as a
+   separate checklist item, not as a replacement for the primary deliverable.
+   Run focused checks and record only evidence needed to prove acceptance. Mark
+   implementation progress separately from independent verification. Do not let
+   an inventory become an endless prerequisite: inspect enough to safely design
+   independent parts, continue discovery for the exhaustive boundary, and
+   reserve the final coverage claim for the completed inventory audit.
 5. Default to one final independent audit of the integrated result. Add an
    intermediate audit only when its verdict must guide a consequential next step:
    for example an exhaustive inventory that controls a migration, a risky data
@@ -38,10 +48,20 @@
    then recheck only affected criteria and dependencies.
 6. Update `state.json`, validate it, and regenerate a short `report.md` after a
    meaningful milestone change, blocker or interruption. Communicate progress at
-   those points and at least once per hour during sustained execution. Show
-   delivered and independently verified milestones separately, the next concrete
-   deliverable, blockers and the path to completion; do not use round counts as
-   progress. After implementation is delivered, the final independent audit
+   those points and at least once per hour during sustained execution. Before
+   ending every execution turn, send a closing checklist that compares this
+   turn's deliverable with the opening checklist: mark completed work only when
+   an artifact or check exists, say explicitly when nothing advanced, and name
+   the next action. Show delivered and independently verified milestones
+   separately, the next concrete deliverable, blockers and the path to
+   completion; do not use round, audit, agent or token counts as progress. If
+   activity accumulates without any milestone delivery or verification, stop
+   expanding the inventory of attempts/subunits, reconcile existing evidence
+   against the approved milestone, and either produce its next acceptance-sized
+   artifact or checkpoint with the exact blocker. Never leave the user with an
+   unexplained 0/N after substantial work: explain that partial evidence exists
+   but does not yet pass the milestone, name it, and state which acceptance
+   checks remain. After implementation is delivered, the final independent audit
    checks all approved criteria against current artifacts before completion.
 
 Use [state](state.md) for record semantics and the fixed artifact layout. The

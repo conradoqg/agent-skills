@@ -77,11 +77,16 @@ actually enforced. These are the manager/auditor's responsibilities. An audit ID
 alone cannot demonstrate that a different child ran: retain the child identity and
 host trace pointer in the audit report and inspect them during evaluation.
 
-Keep `report.md` short: outcome and revision, milestone table (pending / active /
-delivered / verified / blocked), verified count, concrete next deliverable and
-only current blockers. It is derived from `state.json` plus evidence; audit and
-attempt totals are diagnostic and never presented as completion. A milestone
-may be delivered yet awaiting an auditor; show that distinction.
+Keep `report.md` short: outcome and revision, a checkbox list of every milestone,
+verified count, one concrete next deliverable and only current blockers. Use
+`[x]` only for accepted, independently verified milestones; `[~]` for partial or
+delivered-but-unverified work; `[ ]` for pending work; and `[!]` for blocked
+work. It is derived from `state.json` plus evidence; audit and attempt totals are
+diagnostic and never presented as completion. A milestone may be delivered yet
+awaiting an auditor; show it as partial, not verified. When significant evidence
+exists but no milestone passes yet, name that evidence and the unmet acceptance
+checks so a `0/N` count does not conceal what was accomplished or imply progress
+that has not been accepted.
 
 Unit audits assess the contribution to each referenced requirement within that
 unit's explicit scope and local acceptance checks. A passing inventory unit does
